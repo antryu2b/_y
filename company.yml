@@ -1,0 +1,546 @@
+# ============================================
+# _y Holdings — Company Configuration
+# ============================================
+# Edit this file to create YOUR AI company.
+# All agents, departments, and hierarchy defined here.
+# No code changes needed — just edit and restart.
+# ============================================
+
+company:
+  name: "_y Holdings"
+  mission: "Prove that one human + AI agents can operate at enterprise scale"
+  chairman: "R.Andrew"
+  language: ko  # ko | en
+  theme: dark   # dark | light
+
+# ============================================
+# LLM Models Available
+# ============================================
+# Define your LLM pool. Agents reference these by key.
+# Ollama models run locally (free), cloud models need API keys.
+llms:
+  claude_opus:
+    type: anthropic
+    model: claude-opus-4-20250514
+    label: Claude Opus 4
+  claude_sonnet:
+    type: anthropic
+    model: claude-sonnet-4-20250514
+    label: Claude Sonnet 4
+  deepseek_r1:
+    type: ollama
+    model: deepseek-r1:70b
+    label: DeepSeek R1 70B
+  minimax_m25:
+    type: ollama
+    model: minimax-m2.5:cloud
+    label: MiniMax M2.5
+  qwen3_32b:
+    type: ollama
+    model: qwen3:32b
+    label: Qwen3 32B
+  gemini_flash:
+    type: gemini
+    model: gemini-2.5-flash
+    label: Gemini Flash
+  gemini_pro:
+    type: gemini
+    model: gemini-2.5-pro
+    label: Gemini Pro
+
+# ============================================
+# Subsidiaries (Plug & Play)
+# ============================================
+# 0 subsidiaries → tower IS your company
+# 1 subsidiary   → still single company mode (no tabs)
+# 2+ subsidiaries → auto Holdings mode (tabs appear)
+#
+# Each subsidiary gets its own dashboard tab.
+# Agents assigned to a subsidiary are "dispatched" from HQ.
+# Remaining agents stay in Holdings (auto-computed).
+subsidiaries:
+  - id: capital
+    name: "_y Capital"
+    name_ko: "_y 캐피탈"
+    icon: "📈"
+    color: emerald
+    description: "S&P500 algorithmic trading"
+    description_ko: "S&P500 알고리즘 트레이딩"
+    departments: [capital]        # which departments belong to this subsidiary
+    agents: [quanty, tradey, globy, fieldy, hedgy, valuey]
+    floors: [2]
+    data_sources:
+      - type: supabase
+        table: trades
+        endpoint: /api/trades
+    dashboard: CapitalDashboard
+
+  - id: saas
+    name: "_y SaaS"
+    name_ko: "_y SaaS"
+    icon: "🏗️"
+    color: cyan
+    description: "MyBidWise — government bid platform"
+    description_ko: "MyBidWise — 정부입찰공고 플랫폼"
+    departments: [saas]
+    agents: [watchy, opsy]
+    floors: [1]
+    data_sources:
+      - type: external_supabase
+        url: "https://ksdbrovnwphwqonexsus.supabase.co"
+        endpoint: /api/monitoring/mybidwise
+    dashboard: SaaSDashboard
+
+# ============================================
+# Protocols (Future: MCP / A2A compatibility)
+# ============================================
+# protocols:
+#   mcp:
+#     enabled: true
+#     servers:
+#       - name: supabase
+#         type: database
+#       - name: github
+#         type: api
+#   a2a:
+#     enabled: true
+#     agent_card: true          # auto-generate .well-known/agent.json
+#     discovery: dns            # dns | registry | manual
+#     transport: http           # http | grpc
+
+# ============================================
+# Departments (= Tower Floors)
+# ============================================
+# Each department = one floor in the tower.
+# Order matters: first = top floor, last = bottom.
+departments:
+  - id: chairman_office
+    name_ko: 회장실
+    name_en: Chairman's Office
+    floor: 10
+    short_ko: 회장실
+    short_en: Chairman
+
+  - id: planning
+    name_ko: 기획조정실
+    name_en: Strategic Planning
+    floor: 9
+    short_ko: 기획
+    short_en: Planning
+
+  - id: risk
+    name_ko: 리스크챌린지실
+    name_en: Risk & Audit
+    floor: 8
+    short_ko: 리스크
+    short_en: Risk
+
+  - id: engineering
+    name_ko: SW개발본부
+    name_en: Engineering
+    floor: 7
+    short_ko: 개발
+    short_en: Dev
+
+  - id: content
+    name_ko: 콘텐츠본부
+    name_en: Content & Media
+    floor: 6
+    short_ko: 콘텐츠
+    short_en: Content
+
+  - id: marketing
+    name_ko: 마케팅본부
+    name_en: Marketing
+    floor: 5
+    short_ko: 마케팅
+    short_en: Marketing
+
+  - id: ict
+    name_ko: ICT본부
+    name_en: ICT Operations
+    floor: 4
+    short_ko: ICT
+    short_en: ICT
+
+  - id: hr
+    name_ko: 경영지원실
+    name_en: HR & Admin
+    floor: 3
+    short_ko: 경영지원
+    short_en: HR
+
+  - id: capital
+    name_ko: _y Capital
+    name_en: _y Capital
+    floor: 2
+    short_ko: Capital
+    short_en: Capital
+
+  - id: saas
+    name_ko: _y SaaS
+    name_en: _y SaaS
+    floor: 1
+    short_ko: SaaS
+    short_en: SaaS
+
+# ============================================
+# Agents
+# ============================================
+# Add/remove agents freely. Tower adjusts automatically.
+# tier: C | Director | Manager | Staff
+# role: analyst | reviewer | executor | synthesizer | strategist
+agents:
+  # ── 10F 회장실 ──
+  - id: counsely
+    number: "30"
+    name: Counsely
+    tier: C
+    department: chairman_office
+    reportTo: chairman
+    llm: claude_opus
+    role: synthesizer
+    mbti: ENFJ
+    skills: [information-filter, chairman-support, history-management]
+
+  # ── 9F 기획조정실 ──
+  - id: tasky
+    number: "01"
+    name: Tasky
+    tier: C
+    department: planning
+    reportTo: chairman
+    llm: claude_opus
+    role: strategist
+    mbti: ENTJ
+    skills: [task-routing, project-management, delegation]
+
+  - id: finy
+    number: "02"
+    name: Finy
+    tier: C
+    department: planning
+    reportTo: tasky
+    llm: deepseek_r1
+    role: analyst
+    mbti: ISTJ
+    skills: [financial-analysis, budgeting, forecasting]
+
+  - id: legaly
+    number: "03"
+    name: Legaly
+    tier: Director
+    department: planning
+    reportTo: tasky
+    llm: qwen3_32b
+    role: reviewer
+    mbti: INTJ
+    skills: [legal-review, compliance, contract-analysis]
+
+  # ── 8F 리스크/감사 ──
+  - id: skepty
+    number: "04"
+    name: Skepty
+    tier: Director
+    department: risk
+    reportTo: chairman
+    llm: deepseek_r1
+    role: reviewer
+    mbti: INTP
+    skills: [risk-assessment, second-check, devil-advocate]
+
+  - id: audity
+    number: "05"
+    name: Audity
+    tier: Director
+    department: risk
+    reportTo: chairman
+    llm: deepseek_r1
+    role: reviewer
+    mbti: ISTJ
+    skills: [audit, compliance-check, process-review]
+
+  # ── 7F SW개발본부 ──
+  - id: pixely
+    number: "06"
+    name: Pixely
+    tier: Manager
+    department: engineering
+    reportTo: buildy
+    llm: gemini_flash
+    role: executor
+    mbti: ISFP
+    skills: [image-generation, visual-design, thumbnails]
+
+  - id: buildy
+    number: "07"
+    name: Buildy
+    tier: Director
+    department: engineering
+    reportTo: tasky
+    llm: minimax_m25
+    role: executor
+    mbti: ISTP
+    skills: [coding, architecture, deployment]
+
+  - id: testy
+    number: "08"
+    name: Testy
+    tier: Manager
+    department: engineering
+    reportTo: buildy
+    llm: minimax_m25
+    role: reviewer
+    mbti: ESTJ
+    skills: [testing, qa, bug-detection]
+
+  # ── 6F 콘텐츠본부 ──
+  - id: buzzy
+    number: "09"
+    name: Buzzy
+    tier: Director
+    department: content
+    reportTo: tasky
+    llm: claude_sonnet
+    role: executor
+    mbti: ENFP
+    skills: [social-media, viral-content, x-posting]
+
+  - id: wordy
+    number: "10"
+    name: Wordy
+    tier: Manager
+    department: content
+    reportTo: buzzy
+    llm: claude_sonnet
+    role: executor
+    mbti: INFP
+    skills: [copywriting, blog, thread-writing]
+
+  - id: edity
+    number: "11"
+    name: Edity
+    tier: Manager
+    department: content
+    reportTo: buzzy
+    llm: gemini_flash
+    role: executor
+    mbti: ISFJ
+    skills: [video-editing, short-form, clips]
+
+  - id: searchy
+    number: "12"
+    name: Searchy
+    tier: Manager
+    department: content
+    reportTo: buzzy
+    llm: gemini_flash
+    role: analyst
+    mbti: INTJ
+    skills: [news-scan, paper-scan, github-trending, web-research]
+
+  # ── 5F 마케팅본부 ──
+  - id: growthy
+    number: "13"
+    name: Growthy
+    tier: Director
+    department: marketing
+    reportTo: tasky
+    llm: qwen3_32b
+    role: strategist
+    mbti: ENTP
+    skills: [growth-hacking, analytics, user-acquisition]
+
+  - id: logoy
+    number: "14"
+    name: Logoy
+    tier: Staff
+    department: marketing
+    reportTo: growthy
+    llm: gemini_flash
+    role: executor
+    skills: [branding, logo-design]
+
+  - id: helpy
+    number: "15"
+    name: Helpy
+    tier: Staff
+    department: marketing
+    reportTo: growthy
+    llm: gemini_flash
+    role: executor
+    skills: [customer-support, faq, onboarding]
+
+  - id: clicky
+    number: "16"
+    name: Clicky
+    tier: Staff
+    department: marketing
+    reportTo: growthy
+    llm: gemini_flash
+    role: analyst
+    skills: [ad-optimization, click-analysis]
+
+  - id: selly
+    number: "17"
+    name: Selly
+    tier: Staff
+    department: marketing
+    reportTo: growthy
+    llm: gemini_flash
+    role: executor
+    skills: [sales, outreach, partnerships]
+
+  # ── 4F ICT본부 ──
+  - id: stacky
+    number: "18"
+    name: Stacky
+    tier: Director
+    department: ict
+    reportTo: tasky
+    llm: minimax_m25
+    role: executor
+    mbti: ISTP
+    skills: [infrastructure, devops, cloud]
+
+  - id: watchy
+    number: "19"
+    name: Watchy
+    tier: Manager
+    department: ict
+    reportTo: stacky
+    llm: claude_sonnet
+    role: analyst
+    mbti: ISFJ
+    skills: [monitoring, alerting, health-checks]
+
+  - id: guardy
+    number: "20"
+    name: Guardy
+    tier: Manager
+    department: ict
+    reportTo: stacky
+    llm: deepseek_r1
+    role: reviewer
+    mbti: ISTJ
+    skills: [security, access-control, threat-detection]
+
+  # ── 3F 경영지원실 ──
+  - id: hiry
+    number: "21"
+    name: Hiry
+    tier: Manager
+    department: hr
+    reportTo: tasky
+    llm: qwen3_32b
+    role: executor
+    mbti: ESFJ
+    skills: [recruiting, onboarding, agent-evaluation]
+
+  - id: evaly
+    number: "22"
+    name: Evaly
+    tier: Manager
+    department: hr
+    reportTo: hiry
+    llm: claude_sonnet
+    role: reviewer
+    mbti: INFJ
+    skills: [performance-review, feedback, culture]
+
+  # ── 2F _y Capital ──
+  - id: quanty
+    number: "23"
+    name: Quanty
+    tier: Director
+    department: capital
+    reportTo: chairman
+    llm: deepseek_r1
+    role: analyst
+    mbti: INTJ
+    skills: [quant-analysis, backtesting, market-data]
+
+  - id: tradey
+    number: "24"
+    name: Tradey
+    tier: Manager
+    department: capital
+    reportTo: quanty
+    llm: qwen3_32b
+    role: executor
+    mbti: ESTP
+    skills: [strategy-research, trading-signals]
+
+  - id: globy
+    number: "25"
+    name: Globy
+    tier: Manager
+    department: capital
+    reportTo: quanty
+    llm: gemini_flash
+    role: analyst
+    skills: [global-markets, macro-analysis]
+
+  - id: fieldy
+    number: "26"
+    name: Fieldy
+    tier: Staff
+    department: capital
+    reportTo: quanty
+    llm: gemini_flash
+    role: analyst
+    skills: [field-research, data-collection]
+
+  - id: hedgy
+    number: "27"
+    name: Hedgy
+    tier: Manager
+    department: capital
+    reportTo: quanty
+    llm: deepseek_r1
+    role: reviewer
+    mbti: INTJ
+    skills: [risk-hedging, portfolio-optimization]
+
+  - id: valuey
+    number: "28"
+    name: Valuey
+    tier: Manager
+    department: capital
+    reportTo: quanty
+    llm: deepseek_r1
+    role: analyst
+    mbti: INTP
+    skills: [valuation, fundamental-analysis]
+
+  # ── 1F _y SaaS ──
+  - id: opsy
+    number: "29"
+    name: Opsy
+    tier: Director
+    department: saas
+    reportTo: tasky
+    llm: qwen3_32b
+    role: executor
+    mbti: ESTJ
+    skills: [operations, process-automation, saas-management]
+
+# ============================================
+# Decision Pipeline
+# ============================================
+pipelines:
+  types:
+    - market_response
+    - product_development
+    - investment
+    - content_publish
+    - hiring
+    - ops_incident
+    - risk_alert
+    - strategy
+
+  delegation_levels:
+    1: { name: auto-execute, needs_meeting: false }
+    2: { name: execute-then-report, needs_meeting: false }
+    3: { name: approve-then-execute, needs_meeting: true }
+    4: { name: chairman-directive, needs_meeting: true }

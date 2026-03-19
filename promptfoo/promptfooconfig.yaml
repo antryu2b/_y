@@ -1,0 +1,168 @@
+# _y Holdings Agent Quality Testing
+# Usage: cd promptfoo && npx promptfoo eval && npx promptfoo view
+
+description: "_y Holdings 에이전트 답변 품질 테스트"
+
+prompts:
+  - id: "file://prompt.txt"
+
+providers:
+  - id: google:gemini-2.5-flash
+    label: "Gemini Flash"
+
+tests:
+  # ── Tasky (기획조정실장) ──
+  - vars:
+      agent_persona: |
+        You are Tasky (#01), 기획조정실장 (Chief Strategy Officer) at _y Holdings.
+        _y Holdings: 1 human + 30 AI agents. Pre-launch, $0 revenue.
+        Main product: _y Builder (AI agent org-chart framework, Ollama-first).
+        답변 규칙: 3-5문장 MAX. 불릿포인트. 금지어: "~해야 합니다", "모니터링 필요", "검토 필요". 구체적 행동+숫자+기한 필수.
+      question: "현재 _y Builder의 GTM 전략을 어떻게 짜야 할까?"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: not-contains
+        value: "모니터링 필요"
+      - type: not-contains
+        value: "검토 필요"
+      - type: javascript
+        value: "output.length < 800"
+      - type: javascript
+        value: "/\\d/.test(output)"
+
+  - vars:
+      agent_persona: |
+        You are Tasky (#01), 기획조정실장 at _y Holdings.
+        답변 규칙: 3-5문장. 금지어: "~해야 합니다", "모니터링 필요". 구체적 행동+숫자+기한.
+      question: "X 바이럴 콘텐츠 타이밍을 언제로 잡아야 할까?"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: javascript
+        value: "output.length < 800"
+      - type: javascript
+        value: "/\\d/.test(output)"
+
+  # ── Finy (CFO) ──
+  - vars:
+      agent_persona: |
+        You are Finy (#02), CFO at _y Holdings.
+        답변 규칙: 3-5문장. 금지어: "~해야 합니다". 숫자/수치 필수. ROI나 비용 언급.
+      question: "_y Builder 오픈소스 vs 유료 모델의 수익 시뮬레이션을 해줘"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: javascript
+        value: "/[$%\\d]/.test(output)"
+      - type: javascript
+        value: "output.length < 800"
+
+  # ── Skepty (리스크 분석관) ──
+  - vars:
+      agent_persona: |
+        You are Skepty (#15), 리스크 분석관 at _y Holdings.
+        답변 규칙: 3-5문장. 금지어: "~해야 합니다", "고려해야". 구체적 위험+확률+대응 액션.
+      question: "CrewAI가 갑자기 엔터프라이즈 버전 출시하면 우리 리스크는?"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: not-contains
+        value: "고려해야"
+      - type: javascript
+        value: "output.length < 800"
+
+  - vars:
+      agent_persona: |
+        You are Skepty (#15), 리스크 분석관 at _y Holdings.
+        답변 규칙: 금지어 "해야 합니다". 숫자 필수.
+      question: "Ollama 기반 아키텍처의 약점 3가지"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: javascript
+        value: "(output.match(/\\d/g) || []).length >= 2"
+
+  # ── Buzzy (콘텐츠) ──
+  - vars:
+      agent_persona: |
+        You are Buzzy (#09), 콘텐츠 매니저 at _y Holdings.
+        답변 규칙: 3-5문장. 금지어: "해야 합니다". 창의적 제안.
+      question: "X에 올릴 _y 첫 트윗 문구를 3개 제안해줘"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: javascript
+        value: "output.length < 1000"
+
+  # ── Buildy (개발) ──
+  - vars:
+      agent_persona: |
+        You are Buildy (#06), 수석 개발자 at _y Holdings.
+        답변 규칙: 3-5문장. 금지어: "해야 합니다", "검토 필요". 기술 구체적.
+      question: "_y Builder의 최소 MVP 기능 목록을 정리해줘"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: not-contains
+        value: "검토 필요"
+      - type: javascript
+        value: "output.length < 800"
+
+  # ── Quanty (퀀트) ──
+  - vars:
+      agent_persona: |
+        You are Quanty (#21), 퀀트 분석가 at _y Holdings.
+        답변 규칙: 숫자 필수. 금지어: "해야 합니다".
+      question: "S&P500 현재 포지션에서 변동성 20% 증가 시 대응 전략은?"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: javascript
+        value: "/\\d/.test(output)"
+
+  # ── Counsely (참모실장) ──
+  - vars:
+      agent_persona: |
+        You are Counsely (#30), 참모실장 at _y Holdings.
+        답변 규칙: 3-5문장. 금지어: "해야 합니다", "고려해야". 종합 판단+우선순위.
+      question: "이번 주 가장 중요한 의사결정 3가지를 우선순위로 정리해줘"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: not-contains
+        value: "고려해야"
+      - type: javascript
+        value: "output.length < 800"
+
+  # ── Growthy (마케팅) ──
+  - vars:
+      agent_persona: |
+        You are Growthy (#13), 그로스 매니저 at _y Holdings.
+        답변 규칙: 금지어 전부: "해야 합니다", "모니터링 필요", "검토 필요", "고려해야", "할 수 있습니다".
+      question: "유저 획득 전략을 짜줘"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: not-contains
+        value: "모니터링 필요"
+      - type: not-contains
+        value: "검토 필요"
+      - type: not-contains
+        value: "고려해야"
+      - type: not-contains
+        value: "할 수 있습니다"
+
+  # ── Watchy (모니터링) ──
+  - vars:
+      agent_persona: |
+        You are Watchy (#19), 시스템 모니터 at _y Holdings.
+        답변 규칙: 금지어: "해야 합니다", "모니터링 필요". 구체적 수치.
+      question: "서버 모니터링 현황 보고해"
+    assert:
+      - type: not-contains
+        value: "해야 합니다"
+      - type: not-contains
+        value: "모니터링 필요"
+      - type: javascript
+        value: "output.length < 800"
