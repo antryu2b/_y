@@ -371,6 +371,26 @@ npm run test:coverage
 
 MIT — see [LICENSE](./LICENSE)
 
+## FAQ
+
+### What is visual AI orchestration?
+Visual AI orchestration lets you see what multiple AI agents are doing in real-time — who's analyzing what, where they disagree, and how their work combines into a final output. _y provides this as an open-source dashboard for multi-agent workflows.
+
+### How is _y different from CrewAI or AutoGen?
+CrewAI and AutoGen are agent frameworks — you wire agents together in code. _y is a visual orchestration layer: agents are organized by business function, work independently without seeing each other's output, and you watch the entire flow from analysis to synthesis in a UI. Different LLM providers per function means different blind spots get covered.
+
+### Can I run AI agents locally for free?
+Yes. _y works with Ollama on laptops with 8GB RAM or more. The setup wizard detects your hardware and picks appropriate models automatically. No API keys needed for local mode.
+
+### What LLMs does _y support?
+Ollama (Qwen, Gemma, Llama), OpenAI (GPT-4o), Anthropic (Claude), and Google (Gemini). You can mix different providers per function — for example, risk analysis on GPT-4o while operations run on local Qwen.
+
+### Why independent analysis instead of agent consensus?
+LLM-based agents anchor to whoever speaks first, and similar training data produces similar blind spots. Independent analysis with structured synthesis gives broader coverage and lets you spot where individual models fail.
+
+### What can I use _y for?
+Business analysis (SEO, risk, market positioning), strategic planning, content strategy, technical audits. Connect your business URL and agents produce independent reports that get synthesized into an executive brief.
+
 ## Keywords
 
 `visual ai orchestration` · `multi-agent framework` · `ai agent dashboard` · `local llm orchestration` · `ollama multi-agent` · `ai workflow visualization` · `independent agent analysis` · `multi-llm routing` · `agent observability` · `ai company builder` · `crewai alternative` · `autogen alternative` · `local-first ai` · `agent hierarchy`
