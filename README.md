@@ -9,7 +9,7 @@
 >
 > Independent analysis. Visual tracking. Structured synthesis. Local-first.
 
-![Demo](./docs/demo.gif)
+![Visual AI Agent Orchestration Dashboard — _y](./docs/demo.gif)
 
 ## What is this?
 
@@ -371,6 +371,10 @@ npm run test:coverage
 
 MIT — see [LICENSE](./LICENSE)
 
+## Keywords
+
+`visual ai orchestration` · `multi-agent framework` · `ai agent dashboard` · `local llm orchestration` · `ollama multi-agent` · `ai workflow visualization` · `independent agent analysis` · `multi-llm routing` · `agent observability` · `ai company builder` · `crewai alternative` · `autogen alternative` · `local-first ai` · `agent hierarchy`
+
 ## Links
 
 - 🐦 [Twitter/X](https://x.com/_yholdings)
@@ -378,4 +382,4 @@ MIT — see [LICENSE](./LICENSE)
 
 ---
 
-*1 founder. 30 agents. A full company. — Built for builders.*
+*Visual AI agent orchestration — independent analysis, structured synthesis, local-first. Built for builders who want to see what their agents are doing.*
