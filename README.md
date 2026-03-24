@@ -95,6 +95,44 @@ npm run chat-worker
 
 Open [http://localhost:3000](http://localhost:3000) and connect your company.
 
+## After Setup — What to Do
+
+Once you see the dashboard at `localhost:3000`:
+
+### Step 1: Enter a business URL
+Type any company website URL into the input field. The agents will analyze it.
+
+### Step 2: Watch agents work
+Each agent independently analyzes the URL from their department's perspective:
+- **Searchy** checks SEO and search positioning
+- **Buildy** audits the tech stack
+- **Finy** evaluates the business model
+- **Skepty** challenges what others might miss
+
+### Step 3: Read the reports
+Reports appear in the **Reports** panel. Each department submits independently — no agent sees another's work until synthesis.
+
+### Step 4: Review the synthesis
+**Counsely** (Chief of Staff) combines all department reports into one executive brief with recommendations.
+
+### Step 5: Make decisions
+Items flow to the **Decision Pipeline** where you approve, reject, or modify recommendations.
+
+### Example workflow
+```
+You enter: https://example-startup.com
+
+→ Searchy: "SEO score 34/100, missing meta descriptions on 12 pages"
+→ Buildy: "React 18, no SSR, 4.2s load time on mobile"
+→ Finy: "Freemium model, estimated 2.3% conversion rate"
+→ Skepty: "Buildy missed: third-party scripts blocking render"
+→ Counsely: "Priority: fix mobile performance (affects 68% of traffic)"
+
+→ You: Approve / Modify / Reject
+```
+
+> **Pro tip:** Try your own company's URL first. Then try a competitor's.
+
 ## Hardware-Aware Setup
 
 The setup wizard detects your RAM/GPU and recommends the optimal model profile:
