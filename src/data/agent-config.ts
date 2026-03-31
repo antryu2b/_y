@@ -17,6 +17,9 @@ export type LLMProvider = {
 
 export const LLM_MODELS = {
   // ── Ollama (Local — DEFAULT for _y Builder users) ──
+  llama3_70b:   { type: 'ollama' as const, model: 'llama3.3:70b', label: 'Llama 3.3 70B' },
+  gemma3_27b:   { type: 'ollama' as const, model: 'gemma3:27b', label: 'Gemma3 27B' },
+  exaone_deep:  { type: 'ollama' as const, model: 'exaone-deep:latest', label: 'ExaOne Deep' },
   deepseek_r1:  { type: 'ollama' as const, model: 'deepseek-r1:70b', label: 'DeepSeek R1 70B' },
   qwen3_32b:    { type: 'ollama' as const, model: 'qwen3:32b', label: 'Qwen3 32B' },
   exaone:       { type: 'ollama' as const, model: 'exaone3.5:latest', label: 'ExaOne 3.5' },
@@ -61,115 +64,130 @@ export interface AgentConfig {
  * Claude OAuth: M4 로컬에서 `claude --print` 호출 시 $0
  */
 export const AGENT_ROSTER: AgentConfig[] = [
-  // ── 10F 회장실 ──
+  // ══════════════════════════════════════════════════════
+  // LLM Assignment by Hierarchy (Byzantine Principle)
+  // ──────────────────────────────────────────────────────
+  // C-Suite  → Claude Opus       (strategic synthesis, final judgment)
+  // Director → Claude Sonnet     (deep analysis, verification)
+  //          + Qwen3 32B         (cross-architecture check)
+  // Manager  → Gemini Flash      (fast execution, research)
+  //          + Gemma3 27B        (alternative architecture)
+  // Staff    → MiniMax M2.5      (lightweight data collection)
+  //          + Gemini Flash      (fast lookups)
+  //
+  // Same-tier agents use DIFFERENT architectures for Byzantine resilience.
+  // Higher tier = stronger model = more judgment authority.
+  // ══════════════════════════════════════════════════════
+
+  // ── 10F Chairman's Office ──
   { id: 'counsely', number: '30', name: 'Counsely', tier: 'C', floor: 10,
     department: "Chief of Staff", reportTo: 'chairman', llm: LLM_MODELS.claude_opus, role: 'synthesizer',
-    desc: 'Chief of Staff — Information filtering, strategic synthesis', emoji: '' },
+    desc: 'Chief of Staff — Information filtering, strategic synthesis', emoji: '🎯' },
 
-  // ── 9F 기획조정실 ──
+  // ── 9F Planning & Coordination ──
   { id: 'tasky', number: '01', name: 'Tasky', tier: 'C', floor: 9,
     department: 'Planning & Coordination', reportTo: 'chairman', llm: LLM_MODELS.claude_opus, role: 'strategist',
-    desc: 'Task Management — Company-wide coordination, project allocation', emoji: '' },
+    desc: 'Task Management — Company-wide coordination, project allocation', emoji: '📋' },
   { id: 'finy', number: '02', name: 'Finy', tier: 'C', floor: 9,
-    department: 'Planning & Coordination', reportTo: 'tasky', llm: LLM_MODELS.deepseek_r1, role: 'analyst',
-    desc: 'Financial Planning — Budget, revenue analysis, investment review', emoji: '' },
+    department: 'Planning & Coordination', reportTo: 'tasky', llm: LLM_MODELS.claude_opus, role: 'analyst',
+    desc: 'Financial Planning — Budget, revenue analysis, investment review', emoji: '💰' },
   { id: 'legaly', number: '03', name: 'Legaly', tier: 'Director', floor: 9,
-    department: 'Planning & Coordination', reportTo: 'tasky', llm: LLM_MODELS.qwen3_32b, role: 'reviewer',
-    desc: 'Legal Affairs — Contract review, licensing, regulations', emoji: '️' },
+    department: 'Planning & Coordination', reportTo: 'tasky', llm: LLM_MODELS.claude_sonnet, role: 'reviewer',
+    desc: 'Legal Affairs — Contract review, licensing, regulations', emoji: '⚖️' },
 
-  // ── 8F 리스크/감사 ──
+  // ── 8F Risk & Audit ──
   { id: 'skepty', number: '04', name: 'Skepty', tier: 'Director', floor: 8,
-    department: 'Risk Challenge', reportTo: 'chairman', llm: LLM_MODELS.deepseek_r1, role: 'reviewer',
-    desc: 'Risk Analysis — Counter-arguments, false positive prevention', emoji: '' },
+    department: 'Risk Challenge', reportTo: 'chairman', llm: LLM_MODELS.qwen3_32b, role: 'reviewer',
+    desc: 'Risk Analysis — Counter-arguments, false positive prevention', emoji: '🚨' },
   { id: 'audity', number: '05', name: 'Audity', tier: 'Director', floor: 8,
-    department: 'Audit', reportTo: 'chairman', llm: LLM_MODELS.deepseek_r1, role: 'reviewer',
-    desc: 'Auditing — Internal controls, process verification', emoji: '' },
+    department: 'Audit', reportTo: 'chairman', llm: LLM_MODELS.claude_sonnet, role: 'reviewer',
+    desc: 'Auditing — Internal controls, process verification', emoji: '🔍' },
 
-  // ── 7F SW개발본부 ──
+  // ── 7F Software Development ──
   { id: 'pixely', number: '06', name: 'Pixely', tier: 'Manager', floor: 7,
-    department: 'Software Development', reportTo: 'buildy', llm: LLM_MODELS.gemini_flash, role: 'executor',
-    desc: 'UI/UX Design — Visuals, asset creation', emoji: '' },
+    department: 'Software Development', reportTo: 'buildy', llm: LLM_MODELS.gemma3_27b, role: 'executor',
+    desc: 'UI/UX Design — Visuals, asset creation', emoji: '🎨' },
   { id: 'buildy', number: '07', name: 'Buildy', tier: 'Director', floor: 7,
-    department: 'Software Development', reportTo: 'tasky', llm: LLM_MODELS.minimax_m25, role: 'executor',
-    desc: 'Full-stack Development — Architecture, implementation', emoji: '' },
+    department: 'Software Development', reportTo: 'tasky', llm: LLM_MODELS.claude_sonnet, role: 'executor',
+    desc: 'Full-stack Development — Architecture, implementation', emoji: '⚡' },
   { id: 'testy', number: '08', name: 'Testy', tier: 'Manager', floor: 7,
-    department: 'Software Development', reportTo: 'buildy', llm: LLM_MODELS.minimax_m25, role: 'reviewer',
-    desc: 'QA/Testing — Automation, quality verification', emoji: '' },
+    department: 'Software Development', reportTo: 'buildy', llm: LLM_MODELS.gemini_flash, role: 'reviewer',
+    desc: 'QA/Testing — Automation, quality verification', emoji: '🧪' },
 
-  // ── 6F 콘텐츠본부 ──
+  // ── 6F Content Division ──
   { id: 'buzzy', number: '09', name: 'Buzzy', tier: 'Director', floor: 6,
-    department: 'Content Division', reportTo: 'tasky', llm: LLM_MODELS.claude_sonnet, role: 'executor',
-    desc: 'Social Media — Content strategy, campaigns', emoji: '' },
+    department: 'Content Division', reportTo: 'tasky', llm: LLM_MODELS.qwen3_32b, role: 'executor',
+    desc: 'Social Media — Content strategy, campaigns', emoji: '📱' },
   { id: 'wordy', number: '10', name: 'Wordy', tier: 'Manager', floor: 6,
-    department: 'Content Division', reportTo: 'buzzy', llm: LLM_MODELS.claude_sonnet, role: 'executor',
-    desc: 'Copywriting — Blog, document writing', emoji: '️' },
+    department: 'Content Division', reportTo: 'buzzy', llm: LLM_MODELS.gemma3_27b, role: 'executor',
+    desc: 'Copywriting — Blog, document writing', emoji: '✍️' },
   { id: 'edity', number: '11', name: 'Edity', tier: 'Manager', floor: 6,
     department: 'Content Division', reportTo: 'buzzy', llm: LLM_MODELS.gemini_flash, role: 'executor',
-    desc: 'Video Editing — Content processing, production', emoji: '' },
+    desc: 'Video Editing — Content processing, production', emoji: '🎬' },
   { id: 'searchy', number: '12', name: 'Searchy', tier: 'Manager', floor: 6,
     department: 'Content Division', reportTo: 'buzzy', llm: LLM_MODELS.gemini_flash, role: 'analyst',
-    desc: 'SEO/Research — Trend detection, competitor analysis', emoji: '' },
+    desc: 'SEO/Research — Trend detection, competitor analysis', emoji: '🔎' },
 
-  // ── 5F 마케팅본부 ──
+  // ── 5F Marketing Division ──
   { id: 'growthy', number: '13', name: 'Growthy', tier: 'Director', floor: 5,
-    department: 'Marketing Division', reportTo: 'tasky', llm: LLM_MODELS.qwen3_32b, role: 'strategist',
-    desc: 'Growth Hacking — Growth strategy, user acquisition', emoji: '' },
+    department: 'Marketing Division', reportTo: 'tasky', llm: LLM_MODELS.claude_sonnet, role: 'strategist',
+    desc: 'Growth Hacking — Growth strategy, user acquisition', emoji: '📈' },
   { id: 'logoy', number: '14', name: 'Logoy', tier: 'Staff', floor: 5,
-    department: 'Marketing Division', reportTo: 'growthy', llm: LLM_MODELS.gemini_flash, role: 'executor',
-    desc: 'Brand Design — Logo, CI guidelines', emoji: '️' },
+    department: 'Marketing Division', reportTo: 'growthy', llm: LLM_MODELS.minimax_m25, role: 'executor',
+    desc: 'Brand Design — Logo, CI guidelines', emoji: '🏷️' },
   { id: 'helpy', number: '15', name: 'Helpy', tier: 'Staff', floor: 5,
     department: 'Marketing Division', reportTo: 'growthy', llm: LLM_MODELS.gemini_flash, role: 'executor',
-    desc: 'Customer Support — FAQ, onboarding guides', emoji: '' },
+    desc: 'Customer Support — FAQ, onboarding guides', emoji: '💬' },
   { id: 'clicky', number: '16', name: 'Clicky', tier: 'Staff', floor: 5,
-    department: 'Marketing Division', reportTo: 'growthy', llm: LLM_MODELS.gemini_flash, role: 'analyst',
-    desc: 'Ad Management — Performance, conversion tracking', emoji: '' },
+    department: 'Marketing Division', reportTo: 'growthy', llm: LLM_MODELS.minimax_m25, role: 'analyst',
+    desc: 'Ad Management — Performance, conversion tracking', emoji: '📊' },
   { id: 'selly', number: '17', name: 'Selly', tier: 'Staff', floor: 5,
     department: 'Marketing Division', reportTo: 'growthy', llm: LLM_MODELS.gemini_flash, role: 'executor',
-    desc: 'Sales Strategy — Business development, partnerships', emoji: '' },
+    desc: 'Sales Strategy — Business development, partnerships', emoji: '🤝' },
 
-  // ── 4F ICT본부 ──
+  // ── 4F ICT Division ──
   { id: 'stacky', number: '18', name: 'Stacky', tier: 'Director', floor: 4,
-    department: 'ICT Division', reportTo: 'tasky', llm: LLM_MODELS.minimax_m25, role: 'executor',
-    desc: 'Infrastructure — Servers, deployment, DevOps', emoji: '' },
+    department: 'ICT Division', reportTo: 'tasky', llm: LLM_MODELS.qwen3_32b, role: 'executor',
+    desc: 'Infrastructure — Servers, deployment, DevOps', emoji: '🚀' },
   { id: 'watchy', number: '19', name: 'Watchy', tier: 'Manager', floor: 4,
-    department: 'ICT Division', reportTo: 'stacky', llm: LLM_MODELS.claude_sonnet, role: 'analyst',
-    desc: 'Monitoring — Service status, incident detection', emoji: '️' },
+    department: 'ICT Division', reportTo: 'stacky', llm: LLM_MODELS.gemini_flash, role: 'analyst',
+    desc: 'Monitoring — Service status, incident detection', emoji: '👁️' },
   { id: 'guardy', number: '20', name: 'Guardy', tier: 'Manager', floor: 4,
-    department: 'ICT Division', reportTo: 'stacky', llm: LLM_MODELS.deepseek_r1, role: 'reviewer',
-    desc: 'Security — Vulnerability checks, access control', emoji: '' },
+    department: 'ICT Division', reportTo: 'stacky', llm: LLM_MODELS.gemma3_27b, role: 'reviewer',
+    desc: 'Security — Vulnerability checks, access control', emoji: '🛡️' },
 
-  // ── 3F 경영지원실 ──
+  // ── 3F Human Resources ──
   { id: 'hiry', number: '21', name: 'Hiry', tier: 'Manager', floor: 3,
-    department: 'Human Resources', reportTo: 'tasky', llm: LLM_MODELS.qwen3_32b, role: 'executor',
-    desc: 'Operations Support — Hiring, organizational management', emoji: '' },
+    department: 'Human Resources', reportTo: 'tasky', llm: LLM_MODELS.gemini_flash, role: 'executor',
+    desc: 'Operations Support — Hiring, organizational management', emoji: '👥' },
   { id: 'evaly', number: '22', name: 'Evaly', tier: 'Manager', floor: 3,
-    department: 'Human Resources', reportTo: 'hiry', llm: LLM_MODELS.claude_sonnet, role: 'reviewer',
-    desc: 'Data Analytics — Performance measurement, KPI review', emoji: '' },
+    department: 'Human Resources', reportTo: 'hiry', llm: LLM_MODELS.gemma3_27b, role: 'reviewer',
+    desc: 'Data Analytics — Performance measurement, KPI review', emoji: '📈' },
 
   // ── 2F _y Capital ──
   { id: 'quanty', number: '23', name: 'Quanty', tier: 'Director', floor: 2,
-    department: '_y Capital', reportTo: 'chairman', llm: LLM_MODELS.deepseek_r1, role: 'analyst',
-    desc: 'Quantitative Analysis — Market signals, trading strategies', emoji: '' },
+    department: '_y Capital', reportTo: 'chairman', llm: LLM_MODELS.claude_sonnet, role: 'analyst',
+    desc: 'Quantitative Analysis — Market signals, trading strategies', emoji: '📊' },
   { id: 'tradey', number: '24', name: 'Tradey', tier: 'Manager', floor: 2,
-    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.qwen3_32b, role: 'executor',
-    desc: 'Trading — Execution, backtesting', emoji: '' },
+    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.gemini_flash, role: 'executor',
+    desc: 'Trading — Execution, backtesting', emoji: '💹' },
   { id: 'globy', number: '25', name: 'Globy', tier: 'Manager', floor: 2,
-    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.gemini_flash, role: 'analyst',
-    desc: 'Global Markets — International trends, macro analysis', emoji: '' },
+    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.gemma3_27b, role: 'analyst',
+    desc: 'Global Markets — International trends, macro analysis', emoji: '🌍' },
   { id: 'fieldy', number: '26', name: 'Fieldy', tier: 'Staff', floor: 2,
-    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.gemini_flash, role: 'analyst',
-    desc: 'Field Research — On-site data, due diligence', emoji: '' },
+    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.minimax_m25, role: 'analyst',
+    desc: 'Field Research — On-site data, due diligence', emoji: '🔬' },
   { id: 'hedgy', number: '27', name: 'Hedgy', tier: 'Manager', floor: 2,
-    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.deepseek_r1, role: 'reviewer',
-    desc: 'Hedge Strategy — Risk hedging, position management', emoji: '️' },
+    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.gemini_flash, role: 'reviewer',
+    desc: 'Hedge Strategy — Risk hedging, position management', emoji: '⚖️' },
   { id: 'valuey', number: '28', name: 'Valuey', tier: 'Manager', floor: 2,
-    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.deepseek_r1, role: 'analyst',
-    desc: 'Valuation — Corporate value, fundamentals', emoji: '' },
+    department: '_y Capital', reportTo: 'quanty', llm: LLM_MODELS.gemma3_27b, role: 'analyst',
+    desc: 'Valuation — Corporate value, fundamentals', emoji: '💎' },
 
   // ── 1F _y SaaS ──
   { id: 'opsy', number: '29', name: 'Opsy', tier: 'Director', floor: 1,
     department: '_y SaaS', reportTo: 'tasky', llm: LLM_MODELS.qwen3_32b, role: 'executor',
-    desc: 'Operations — SaaS services, automation', emoji: '' },
+    desc: 'Operations — SaaS services, automation', emoji: '⚙️' },
 ];
 
 // ── Helper functions ──

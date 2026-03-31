@@ -1,492 +1,537 @@
 #!/usr/bin/env tsx
 
 /**
- * Chat Queue Worker (SQLite + Multi-LLM)
- * 
- * Polls SQLite chat_queue for pending tasks and routes to the configured LLM provider.
- * Supports: Ollama (local), OpenAI, Anthropic, Google.
- * 
+ * Chat Queue Worker (SQLite version)
+ *
+ * Polls chat_queue table via better-sqlite3 directly.
+ * Calls Ollama / Gemini / Claude based on agent LLM assignment.
+ *
  * Usage: npx tsx scripts/chat-worker.ts
  */
 
+import { execSync } from 'child_process';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
-// ── Config ──
+// ── Configuration ──
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const POLL_INTERVAL = 5000;
 const DB_PATH = path.join(process.cwd(), 'data', 'y-company.db');
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 
-// ── DB ──
-function getDb(): Database.Database {
-  const dataDir = path.join(process.cwd(), 'data');
-  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+// ── Load agent-config (LLM assignment) ──
+// We import dynamically because tsconfig excludes scripts/
+// and path aliases (@/) won't resolve. Use relative paths.
+import { getAgentLLM } from '../src/lib/llm-profile';
+
+// ── Types ──
+interface QueueItem {
+  id: number;
+  agent_id: string;
+  message: string;
+  system_prompt: string | null;
+  status: string;
+  response: string | null;
+  model: string | null;
+  metadata: string | null;
+  created_at: string;
+  processed_at: string | null;
+}
+
+interface ParsedMetadata {
+  type?: string;
+  directive_id?: string;
+  phase?: number;
+  total_phases?: number;
+  hold?: boolean;
+  retry_count?: number;
+  tier?: string;
+  [key: string]: unknown;
+}
+
+// ── Database setup ──
+function openDb(): Database.Database {
+  if (!fs.existsSync(DB_PATH)) {
+    console.error(`❌ Database not found at ${DB_PATH}`);
+    console.error('   Run the Next.js app first to create and seed the database.');
+    process.exit(1);
+  }
   const db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
   return db;
 }
 
-const db = getDb();
+const db = openDb();
 
-// Ensure columns exist
-try { db.exec('ALTER TABLE chat_queue ADD COLUMN system_prompt TEXT'); } catch {}
-try { db.exec('ALTER TABLE chat_queue ADD COLUMN metadata TEXT'); } catch {}
-try { db.exec('ALTER TABLE chat_queue ADD COLUMN model TEXT'); } catch {}
-try { db.exec('ALTER TABLE decisions ADD COLUMN progress TEXT'); } catch {}
-try { db.exec('ALTER TABLE decisions ADD COLUMN trigger_data TEXT'); } catch {}
-try { db.exec('ALTER TABLE reports ADD COLUMN directive_id TEXT'); } catch {}
+// Prepared statements for performance
+const stmts = {
+  selectPending: db.prepare(
+    `SELECT * FROM chat_queue WHERE status = 'pending' ORDER BY created_at ASC LIMIT 5`
+  ),
+  selectErrors: db.prepare(
+    `SELECT * FROM chat_queue WHERE status = 'error' ORDER BY created_at ASC LIMIT 3`
+  ),
+  updateStatus: db.prepare(
+    `UPDATE chat_queue SET status = ? WHERE id = ?`
+  ),
+  updateProcessing: db.prepare(
+    `UPDATE chat_queue SET status = 'processing' WHERE id = ?`
+  ),
+  updateDone: db.prepare(
+    `UPDATE chat_queue SET status = 'done', response = ?, model = ?, processed_at = datetime('now') WHERE id = ?`
+  ),
+  updateError: db.prepare(
+    `UPDATE chat_queue SET status = 'error', response = ? WHERE id = ?`
+  ),
+  updateMetadata: db.prepare(
+    `UPDATE chat_queue SET metadata = ? WHERE id = ?`
+  ),
+  updateMessageAndMeta: db.prepare(
+    `UPDATE chat_queue SET message = ?, metadata = ? WHERE id = ?`
+  ),
+  insertConversation: db.prepare(
+    `INSERT INTO conversations (agent_id, role, content) VALUES (?, ?, ?)`
+  ),
+  insertMemory: db.prepare(
+    `INSERT INTO agent_memory (agent_id, memory_type, content, importance) VALUES (?, ?, ?, ?)`
+  ),
+  selectMemories: db.prepare(
+    `SELECT content, memory_type, importance FROM agent_memory
+     WHERE agent_id = ? AND memory_type IN ('conversation','knowledge','skill','meeting')
+     ORDER BY importance DESC, created_at DESC LIMIT 10`
+  ),
+  insertReport: db.prepare(
+    `INSERT INTO reports (id, agent_id, title, content, report_type, status, directive_id, created_at)
+     VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?, ?, ?, datetime('now'))`
+  ),
+  selectDecision: db.prepare(
+    `SELECT * FROM decisions WHERE id = ? LIMIT 1`
+  ),
+  updateDecision: db.prepare(
+    `UPDATE decisions SET progress = ?, status = ?, updated_at = datetime('now') WHERE id = ?`
+  ),
+  selectDirectiveTasks: db.prepare(
+    `SELECT * FROM chat_queue WHERE json_extract(metadata, '$.directive_id') = ?`
+  ),
+};
 
-// ── LLM Profile ──
-interface AgentLLMConfig {
-  provider: string;
-  model: string;
+// ── Helpers ──
+function parseMeta(item: QueueItem): ParsedMetadata {
+  if (!item.metadata) return {};
+  try { return JSON.parse(item.metadata); } catch { return {}; }
 }
 
-function getAgentLLMConfig(agentId: string): AgentLLMConfig {
-  try {
-    const profilePath = path.join(process.cwd(), 'data', 'llm-profile.json');
-    if (fs.existsSync(profilePath)) {
-      const profile = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
-      const provider = profile.provider || 'ollama';
+function randomUUID(): string {
+  return crypto.randomUUID();
+}
 
-      // Per-agent override (new format)
-      if (profile.agents?.[agentId]) {
-        return {
-          provider: profile.agents[agentId].provider,
-          model: profile.agents[agentId].model,
-        };
-      }
+// ── LLM Calling Functions ──
 
-      // Cloud provider defaults
-      const analysisAgents = new Set([
-        'counsely', 'tasky', 'finy', 'legaly', 'skepty', 'audity',
-        'quanty', 'hedgy', 'valuey', 'growthy',
-      ]);
-      const cloudDefaults: Record<string, { analysis: string; utility: string }> = {
-        openai: { analysis: 'gpt-4o', utility: 'gpt-4o-mini' },
-        anthropic: { analysis: 'claude-sonnet-4-20250514', utility: 'claude-sonnet-4-20250514' },
-        google: { analysis: 'gemini-2.0-flash', utility: 'gemini-2.0-flash' },
-      };
-
-      if (provider in cloudDefaults) {
-        const defaults = cloudDefaults[provider];
-        return {
-          provider,
-          model: analysisAgents.has(agentId) ? defaults.analysis : defaults.utility,
-        };
-      }
-
-      // Ollama: legacy agentModels format
-      if (profile.agentModels?.[agentId]) {
-        return { provider: 'ollama', model: profile.agentModels[agentId] };
-      }
+async function callClaude(
+  systemPrompt: string,
+  message: string,
+  history: Array<{ role: string; content: string }>,
+  model: string
+): Promise<string> {
+  // Build full prompt with history
+  let fullPrompt = `${systemPrompt}\n\n`;
+  if (history.length > 0) {
+    fullPrompt += '## Previous Conversation\n';
+    for (const h of history.slice(-5)) {
+      fullPrompt += `${h.role === 'assistant' ? 'Assistant' : 'User'}: ${h.content}\n`;
     }
-  } catch {}
-  return { provider: 'ollama', model: 'qwen2.5:7b' };
+    fullPrompt += '\n';
+  }
+  fullPrompt += `Current User Message: ${message}`;
+
+  // Write prompt to temp file to avoid shell escaping issues
+  const tmpFile = path.join('/tmp', `chat-worker-${Date.now()}.txt`);
+  fs.writeFileSync(tmpFile, fullPrompt, 'utf-8');
+  try {
+    const result = execSync(`cat "${tmpFile}" | claude --print --model ${model}`, {
+      encoding: 'utf-8',
+      timeout: 180_000,
+      maxBuffer: 1024 * 1024,
+    });
+    return result.trim();
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch {}
+  }
 }
 
-// ── Ollama Call ──
-async function callOllama(systemPrompt: string, message: string, history: any[], model: string): Promise<string | null> {
-  try {
-    const messages = [
-      { role: 'system', content: systemPrompt || 'You are a helpful AI agent.' },
-      ...history,
-      { role: 'user', content: message },
-    ];
+async function callOllama(
+  systemPrompt: string,
+  message: string,
+  history: Array<{ role: string; content: string }>,
+  model: string
+): Promise<string> {
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...history.slice(-10).map(h => ({
+      role: h.role === 'assistant' ? 'assistant' : 'user',
+      content: h.content,
+    })),
+    { role: 'user', content: message },
+  ];
 
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
+  const response = await fetch('http://localhost:11434/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: false,
+      options: { temperature: 0.8, top_p: 0.9 },
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Ollama API error: ${response.statusText}`);
+  const data = await response.json();
+  return data.message?.content || '';
+}
+
+async function callGemini(
+  systemPrompt: string,
+  message: string,
+  history: Array<{ role: string; content: string }>,
+  model: string
+): Promise<string> {
+  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not available');
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+  const contents = [
+    ...history.slice(-10).map(h => ({
+      role: h.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: h.content }],
+    })),
+    { role: 'user', parts: [{ text: message }] },
+  ];
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents,
+      generationConfig: { maxOutputTokens: 4096, temperature: 0.8 },
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Gemini API error: ${response.statusText}`);
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+// ── Memory recall ──
+function recallMemories(agentId: string): string {
+  const memories = stmts.selectMemories.all(agentId) as Array<{
+    content: string;
+    memory_type: string;
+    importance: number;
+  }>;
+  if (!memories.length) return '';
+  const block = memories.map(m => `[${m.memory_type}] ${m.content}`).join('\n');
+  return `\n\n## Your Memories (recalled from past interactions)\n${block}\n\nUse these memories to provide more contextual, personalized responses. Reference past events when relevant.`;
+}
+
+// ── Directive handling ──
+function handleDirectiveCompletion(item: QueueItem, meta: ParsedMetadata, response: string): void {
+  if (meta.type !== 'directive_task' || !meta.directive_id) return;
+
+  const directiveId = meta.directive_id;
+  const agentId = item.agent_id;
+  const currentPhase = meta.phase || 1;
+  const totalPhases = meta.total_phases || 1;
+
+  console.log(`📋 Processing directive completion for ${agentId} on directive ${directiveId}`);
+
+  // 1. Save a report for this directive result
+  stmts.insertReport.run(agentId, `Directive Response - ${agentId}`, response, 'directive_response', 'completed', directiveId);
+
+  // 2. Update directive progress
+  const directive = stmts.selectDecision.get(directiveId) as any;
+  if (!directive) {
+    console.warn(`Directive ${directiveId} not found`);
+    return;
+  }
+
+  let progress: any;
+  try { progress = JSON.parse(directive.progress || '{}'); } catch { progress = {}; }
+  progress.completed = (progress.completed || 0) + 1;
+  progress.agent_results = progress.agent_results || {};
+  progress.agent_results[agentId] = { completed_at: new Date().toISOString(), status: 'completed' };
+
+  // 3. Check if current phase is complete → activate next phase
+  const allTasks = stmts.selectDirectiveTasks.all(directiveId) as QueueItem[];
+  const allTasksParsed = allTasks.map(t => ({ ...t, _meta: parseMeta(t) }));
+
+  const currentPhaseTasks = allTasksParsed.filter(t => (t._meta.phase || 1) === currentPhase);
+  const currentPhaseCompleted = currentPhaseTasks.every(t => t.status === 'done' || t.status === 'error');
+
+  if (currentPhaseCompleted && currentPhase < totalPhases) {
+    // Collect completed results for context injection
+    const completedResults = allTasksParsed
+      .filter(t => (t.status === 'done') && t.response)
+      .map(t => `[${t.agent_id.toUpperCase()} Analysis]:\n${t.response}`)
+      .join('\n\n---\n\n');
+
+    // Release next phase tasks
+    const nextPhaseTasks = allTasksParsed.filter(
+      t => (t._meta.phase || 1) === currentPhase + 1 && t._meta.hold === true
+    );
+
+    for (const task of nextPhaseTasks) {
+      const enrichedMessage =
+        task.message +
+        `\n\n## Prior Analysis from Lower-Tier Agents\n` +
+        `The following analyses were completed by agents who reported before you.\n\n` +
+        `${completedResults}\n\n` +
+        `## INDEPENDENT VERIFICATION MANDATE\n` +
+        `- First, form your OWN independent analysis before reading the above.\n` +
+        `- Then compare your conclusions with the prior analyses.\n` +
+        `- Explicitly note where you AGREE and where you DISAGREE.\n` +
+        `- If you find contradictions or weak reasoning, call them out directly.\n` +
+        `- Do NOT defer to prior analyses just because they were submitted first.\n` +
+        `- Your value is your independent judgment — anchoring to prior conclusions defeats the purpose of hierarchical review.`;
+
+      const updatedMeta = { ...task._meta, hold: false };
+      stmts.updateMessageAndMeta.run(enrichedMessage, JSON.stringify(updatedMeta), task.id);
+      console.log(`⬆️ Released ${task.agent_id} (phase ${currentPhase + 1}) with ${currentPhaseTasks.length} prior results`);
+    }
+  }
+
+  // 4. Check if ALL agents are done
+  const allCompleted = progress.completed >= (progress.total || 0);
+  const newStatus = allCompleted ? 'done' : directive.status;
+  stmts.updateDecision.run(JSON.stringify(progress), newStatus, directiveId);
+
+  if (allCompleted) {
+    console.log(`🎉 All agents completed directive ${directiveId} (${totalPhases} phases)`);
+  }
+  console.log(`📈 Updated directive ${directiveId} progress: ${progress.completed}/${progress.total || '?'} (phase ${currentPhase}/${totalPhases})`);
+}
+
+// ── Memory extraction via Ollama (no API key needed) or Gemini fallback ──
+async function extractAndSaveMemory(agentId: string, message: string, response: string): Promise<void> {
+  const extractPrompt = `You are a memory extractor. Given this conversation between a chairman and an AI agent, extract ONE key takeaway worth remembering. Reply with ONLY a JSON object: {"content":"1-sentence memory","memory_type":"conversation|knowledge|skill|meeting","importance":1-10}. If nothing worth remembering, reply {"skip":true}.\n\nUser: ${message}\nAgent (${agentId}): ${response}`;
+
+  let text = '';
+  try {
+    // Try Ollama first
+    const ollamaRes = await fetch('http://localhost:11434/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model,
-        messages,
+        model: 'llama3.1:8b',
+        messages: [{ role: 'user', content: extractPrompt }],
         stream: false,
-        options: { temperature: 0.8, top_p: 0.9 },
+        options: { temperature: 0.1 },
       }),
     });
-
-    if (!response.ok) throw new Error(`Ollama error: ${response.statusText}`);
-    const data = await response.json();
-    return data.message?.content || '';
-  } catch (error: any) {
-    console.error(`  \x1b[31m[Ollama] ${error.message}\x1b[0m`);
-    return null;
-  }
-}
-
-// ── OpenAI Call ──
-async function callOpenAI(systemPrompt: string, message: string, history: any[], model: string): Promise<string | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    console.error('  \x1b[31m[OpenAI] OPENAI_API_KEY not set\x1b[0m');
-    return null;
-  }
-
-  try {
-    const messages = [
-      { role: 'system', content: systemPrompt || 'You are a helpful AI agent.' },
-      ...history,
-      { role: 'user', content: message },
-    ];
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.8,
-        top_p: 0.9,
-      }),
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`OpenAI API error ${response.status}: ${errBody}`);
+    if (ollamaRes.ok) {
+      const d = await ollamaRes.json();
+      text = d.message?.content?.trim() || '';
+    } else {
+      throw new Error('Ollama unavailable');
     }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '';
-  } catch (error: any) {
-    console.error(`  \x1b[31m[OpenAI] ${error.message}\x1b[0m`);
-    return null;
-  }
-}
-
-// ── Anthropic Call ──
-async function callAnthropic(systemPrompt: string, message: string, history: any[], model: string): Promise<string | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.error('  \x1b[31m[Anthropic] ANTHROPIC_API_KEY not set\x1b[0m');
-    return null;
-  }
-
-  try {
-    // Convert history to Anthropic format (alternating user/assistant)
-    const anthropicMessages: { role: string; content: string }[] = [];
-    for (const msg of history) {
-      anthropicMessages.push({ role: msg.role, content: msg.content });
-    }
-    anthropicMessages.push({ role: 'user', content: message });
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 4096,
-        system: systemPrompt || 'You are a helpful AI agent.',
-        messages: anthropicMessages,
-      }),
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`Anthropic API error ${response.status}: ${errBody}`);
-    }
-
-    const data = await response.json();
-    // Anthropic returns content as an array of blocks
-    const textBlocks = (data.content || []).filter((b: any) => b.type === 'text');
-    return textBlocks.map((b: any) => b.text).join('') || '';
-  } catch (error: any) {
-    console.error(`  \x1b[31m[Anthropic] ${error.message}\x1b[0m`);
-    return null;
-  }
-}
-
-// ── Google (Gemini) Call ──
-async function callGoogle(systemPrompt: string, message: string, history: any[], model: string): Promise<string | null> {
-  const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.error('  \x1b[31m[Google] GOOGLE_API_KEY not set\x1b[0m');
-    return null;
-  }
-
-  try {
-    // Build Gemini contents format
-    const contents: any[] = [];
-    for (const msg of history) {
-      contents.push({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }],
-      });
-    }
-    contents.push({ role: 'user', parts: [{ text: message }] });
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt || 'You are a helpful AI agent.' }] },
-          contents,
-          generationConfig: {
-            temperature: 0.8,
-            topP: 0.9,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`Google API error ${response.status}: ${errBody}`);
-    }
-
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  } catch (error: any) {
-    console.error(`  \x1b[31m[Google] ${error.message}\x1b[0m`);
-    return null;
-  }
-}
-
-// ── LLM Router ──
-async function callLLM(provider: string, model: string, systemPrompt: string, message: string, history: any[]): Promise<string | null> {
-  switch (provider) {
-    case 'ollama':    return callOllama(systemPrompt, message, history, model);
-    case 'openai':    return callOpenAI(systemPrompt, message, history, model);
-    case 'anthropic': return callAnthropic(systemPrompt, message, history, model);
-    case 'google':    return callGoogle(systemPrompt, message, history, model);
-    default:          return callOllama(systemPrompt, message, history, model);
-  }
-}
-
-// ── Directive Completion ──
-function handleDirectiveCompletion(item: any, response: string): void {
-  try {
-    const metadata = item.metadata ? JSON.parse(item.metadata) : {};
-    if (metadata.type !== 'directive_task' || !metadata.directive_id) return;
-
-    const directiveId = metadata.directive_id;
-    const agentId = item.agent_id;
-    console.log(`  \x1b[36m📋 Directive completion: ${agentId} → ${directiveId}\x1b[0m`);
-
-    const directive = db.prepare('SELECT * FROM decisions WHERE id = ?').get(directiveId) as any;
-    if (!directive) return;
-
-    let progress = directive.progress ? JSON.parse(directive.progress) : { total: 0, completed: 0, agent_results: {} };
-    progress.completed = (progress.completed || 0) + 1;
-    progress.agent_results = progress.agent_results || {};
-    progress.agent_results[agentId] = { status: 'completed', completed_at: new Date().toISOString() };
-
-    const allDone = progress.completed >= progress.total;
-
-    db.prepare('UPDATE decisions SET progress = ?, status = ?, updated_at = datetime("now") WHERE id = ?')
-      .run(JSON.stringify(progress), allDone ? 'done' : 'in_progress', directiveId);
-
-    if (allDone) {
-      console.log(`  \x1b[32m🎉 All agents completed directive ${directiveId}\x1b[0m`);
-      const tasks = db.prepare('SELECT * FROM chat_queue WHERE metadata LIKE ? AND status = "done"')
-        .all(`%${directiveId}%`) as any[];
-      
-      let reportContent = `# Directive Report\n\n`;
-      for (const t of tasks) {
-        reportContent += `## ${t.agent_id}\n${t.response || '(no response)'}\n\n`;
-      }
-
-      db.prepare('INSERT INTO reports (id, agent_id, title, content, report_type, directive_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(
-          crypto.randomUUID(),
-          'counsely',
-          `Directive Report: ${directive.title}`,
-          reportContent,
-          'directive_report',
-          directiveId,
-          'pending'
-        );
-    }
-  } catch (e) {
-    console.error('Directive completion error:', e);
-  }
-}
-
-// ── Schedule Checker ──
-function checkSchedules(): void {
-  try {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS schedules (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-        name TEXT NOT NULL,
-        agent_id TEXT,
-        schedule_type TEXT DEFAULT 'interval',
-        schedule_value TEXT NOT NULL,
-        prompt TEXT NOT NULL,
-        channel TEXT DEFAULT '',
-        enabled INTEGER DEFAULT 1,
-        last_run TEXT,
-        next_run TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
-      )
-    `);
-
-    const now = new Date();
-    const nowStr = now.toISOString().replace('T', ' ').slice(0, 19);
-
-    const dueSchedules = db.prepare(
-      `SELECT * FROM schedules WHERE enabled = 1 AND (next_run IS NULL OR next_run <= ?)`
-    ).all(nowStr) as any[];
-
-    for (const schedule of dueSchedules) {
-      const { id, name, agent_id, schedule_type, schedule_value, prompt } = schedule;
-      if (!agent_id || !prompt) continue;
-
-      console.log(`\x1b[35m⏰ [Schedule]\x1b[0m "${name}" → ${agent_id}`);
-
-      db.prepare(
-        'INSERT INTO chat_queue (agent_id, message, system_prompt, metadata) VALUES (?, ?, ?, ?)'
-      ).run(
-        agent_id,
-        prompt,
-        null,
-        JSON.stringify({ type: 'scheduled', schedule_id: id, schedule_name: name })
-      );
-
-      const nextRun = calculateNextRun(schedule_type, schedule_value, now);
-
-      db.prepare(
-        'UPDATE schedules SET last_run = ?, next_run = ? WHERE id = ?'
-      ).run(nowStr, nextRun, id);
-
-      console.log(`\x1b[35m  ↳ next_run: ${nextRun}\x1b[0m`);
-    }
-  } catch (e) {
-    console.error('Schedule check error:', e);
-  }
-}
-
-function calculateNextRun(type: string, value: string, now: Date): string {
-  if (type === 'daily') {
-    const [hours, minutes] = value.split(':').map(Number);
-    const next = new Date(now);
-    next.setHours(hours, minutes, 0, 0);
-    next.setDate(next.getDate() + 1);
-    return next.toISOString().replace('T', ' ').slice(0, 19);
-  }
-
-  if (type === 'interval') {
-    const ms = parseInt(value, 10);
-    const next = new Date(now.getTime() + (ms || 3600000));
-    return next.toISOString().replace('T', ' ').slice(0, 19);
-  }
-
-  if (type === 'cron') {
-    const next = new Date(now);
-    next.setDate(next.getDate() + 1);
-    next.setHours(0, 0, 0, 0);
-    return next.toISOString().replace('T', ' ').slice(0, 19);
-  }
-
-  return new Date(now.getTime() + 3600000).toISOString().replace('T', ' ').slice(0, 19);
-}
-
-// ── Get conversation history ──
-function getHistory(agentId: string, limit: number = 10): { role: string; content: string }[] {
-  try {
-    const rows = db.prepare(
-      'SELECT role, content FROM conversations WHERE agent_id = ? ORDER BY rowid DESC LIMIT ?'
-    ).all(agentId, limit) as any[];
-    return rows.reverse();
   } catch {
-    return [];
+    // Fallback to Gemini
+    if (!GEMINI_API_KEY) return;
+    try {
+      const gemRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: extractPrompt }] }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 200 },
+          }),
+        }
+      );
+      const gemData = await gemRes.json();
+      text = gemData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    } catch {
+      return;
+    }
+  }
+
+  try {
+    const json = JSON.parse(text.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+    if (!json.skip && json.content) {
+      stmts.insertMemory.run(
+        agentId,
+        json.memory_type || 'conversation',
+        json.content,
+        Math.min(10, Math.max(1, json.importance || 5))
+      );
+      console.log(`💭 Memory extracted for ${agentId}: ${json.content}`);
+    }
+  } catch {
+    // JSON parse failed — non-critical
   }
 }
 
-// ── Process Queue ──
-async function processItem(item: any): Promise<void> {
-  const { id, agent_id, message, system_prompt } = item;
-  const { provider, model } = getAgentLLMConfig(agent_id);
-  const start = Date.now();
+// ── Main processing function ──
+async function processQueueItem(item: QueueItem): Promise<void> {
+  const meta = parseMeta(item);
 
-  console.log(`\x1b[33m🔄 [${agent_id}]\x1b[0m ${provider}/${model} — processing...`);
+  // Skip held items
+  if (meta.hold === true) {
+    console.log(`⏸️ Skipping ${item.agent_id} (phase ${meta.phase}) — held, awaiting prior phases`);
+    return;
+  }
 
-  db.prepare('UPDATE chat_queue SET status = "processing" WHERE id = ?').run(id);
+  console.log(`🔄 Processing queue item ${item.id} for agent ${item.agent_id}`);
 
   try {
-    const history = getHistory(agent_id);
-    const response = await callLLM(provider, model, system_prompt || '', message, history);
-    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+    // Mark as processing
+    stmts.updateProcessing.run(item.id);
+
+    // Recall agent memories
+    const memoryContext = recallMemories(item.agent_id);
+    const systemPrompt = (item.system_prompt || '') + memoryContext;
+    console.log(`💭 Recalled ${memoryContext ? memoryContext.split('\n').length - 2 : 0} memories for ${item.agent_id}`);
+
+    // Get LLM config
+    const llmConfig = getAgentLLM(item.agent_id);
+    console.log(`📡 Calling ${llmConfig.provider} (${llmConfig.model}) for ${item.agent_id}`);
+
+    let response: string;
+    const history: Array<{ role: string; content: string }> = [];
+
+    // Map provider to call
+    switch (llmConfig.provider) {
+      case 'anthropic':
+        response = await callClaude(systemPrompt, item.message, history, llmConfig.model);
+        break;
+
+      case 'ollama':
+        try {
+          response = await callOllama(systemPrompt, item.message, history, llmConfig.model);
+        } catch (ollamaError) {
+          console.warn(`Ollama failed for ${item.agent_id}, falling back to Gemini Flash:`, (ollamaError as Error).message);
+          if (GEMINI_API_KEY) {
+            response = await callGemini(systemPrompt, item.message, history, 'gemini-2.0-flash');
+          } else {
+            throw ollamaError; // No fallback available
+          }
+        }
+        break;
+
+      case 'google':
+        response = await callGemini(systemPrompt, item.message, history, llmConfig.model);
+        break;
+
+      default:
+        // Default: try Ollama → Gemini
+        try {
+          response = await callOllama(systemPrompt, item.message, history, 'qwen2.5:7b');
+        } catch {
+          if (GEMINI_API_KEY) {
+            response = await callGemini(systemPrompt, item.message, history, 'gemini-2.0-flash');
+          } else {
+            throw new Error(`No LLM available for provider: ${llmConfig.provider}`);
+          }
+        }
+        break;
+    }
 
     if (!response) throw new Error('Empty response from LLM');
 
-    db.prepare('UPDATE chat_queue SET status = "done", response = ?, model = ?, processed_at = datetime("now") WHERE id = ?')
-      .run(response, `${provider}/${model}`, id);
+    // Save to chat_queue
+    stmts.updateDone.run(response, `${llmConfig.provider}:${llmConfig.model}`, item.id);
 
-    db.prepare('INSERT INTO conversations (agent_id, role, content) VALUES (?, ?, ?)').run(agent_id, 'user', message);
-    db.prepare('INSERT INTO conversations (agent_id, role, content) VALUES (?, ?, ?)').run(agent_id, 'assistant', response);
+    // Save to conversations
+    stmts.insertConversation.run(item.agent_id, 'user', item.message);
+    stmts.insertConversation.run(item.agent_id, 'assistant', response);
 
-    console.log(`\x1b[32m✅ [${agent_id}]\x1b[0m ${elapsed}s — ${response.length} chars`);
+    console.log(`✅ Completed queue item ${item.id} for agent ${item.agent_id}`);
 
-    handleDirectiveCompletion(item, response);
+    // Handle directive completion
+    handleDirectiveCompletion(item, meta, response);
 
-  } catch (error: any) {
-    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    console.error(`\x1b[31m❌ [${agent_id}]\x1b[0m ${elapsed}s — ${error.message}`);
-    db.prepare('UPDATE chat_queue SET status = "error", response = ? WHERE id = ?')
-      .run(`Error: ${error.message}`, id);
+    // Extract and save memory (async, non-blocking)
+    extractAndSaveMemory(item.agent_id, item.message, response).catch(e =>
+      console.warn('Memory extraction failed (non-critical):', e)
+    );
+  } catch (error) {
+    console.error(`❌ Error processing queue item ${item.id}:`, error);
+    stmts.updateError.run(String(error), item.id);
   }
 }
 
-// ── Main Loop ──
-async function poll() {
-  checkSchedules();
-  const pending = db.prepare('SELECT * FROM chat_queue WHERE status = "pending" ORDER BY rowid ASC LIMIT 1').all();
+// ── Main worker loop ──
+async function main() {
+  console.log('🤖 Chat Queue Worker started (SQLite mode)');
+  console.log(`📍 Database: ${DB_PATH}`);
+  console.log(`⏱️  Poll interval: ${POLL_INTERVAL}ms`);
 
-  for (const item of pending) {
-    await processItem(item);
-  }
-}
+  while (true) {
+    try {
+      // Fetch pending items
+      const pendingItems = stmts.selectPending.all() as QueueItem[];
 
-// ── Detect active provider ──
-function getActiveProvider(): string {
-  try {
-    const profilePath = path.join(process.cwd(), 'data', 'llm-profile.json');
-    if (fs.existsSync(profilePath)) {
-      const profile = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
-      return profile.provider || 'ollama';
+      // Auto-retry: error items older than 2 min, max 1 retry
+      const errorItems = stmts.selectErrors.all() as QueueItem[];
+      for (const errItem of errorItems) {
+        const age = Date.now() - new Date(errItem.created_at).getTime();
+        const meta = parseMeta(errItem);
+        const retryCount = meta.retry_count || 0;
+        if (age > 2 * 60 * 1000 && retryCount < 1) {
+          console.log(`🔄 Auto-retry: ${errItem.agent_id} (attempt ${retryCount + 1})`);
+          const updatedMeta = { ...meta, retry_count: retryCount + 1 };
+          stmts.updateMetadata.run(JSON.stringify(updatedMeta), errItem.id);
+          stmts.updateStatus.run('pending', errItem.id);
+        }
+      }
+
+      if (pendingItems.length > 0) {
+        console.log(`📥 Found ${pendingItems.length} pending items`);
+
+        for (const item of pendingItems) {
+          const meta = parseMeta(item);
+
+          if (meta.hold === true && meta.directive_id) {
+            // Check if prior phases are complete
+            const allTasks = stmts.selectDirectiveTasks.all(meta.directive_id) as QueueItem[];
+            const currentPhase = meta.phase || 1;
+            const priorIncomplete = allTasks.some(t => {
+              const tMeta = parseMeta(t);
+              return (tMeta.phase || 1) < currentPhase && t.status !== 'done' && t.status !== 'error';
+            });
+            if (priorIncomplete) continue;
+          }
+
+          await processQueueItem(item);
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+    } catch (error) {
+      console.error('💥 Worker loop error:', error);
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
     }
-  } catch {}
-  return 'ollama';
+  }
 }
 
-const activeProvider = getActiveProvider();
+// ── Graceful shutdown ──
+process.on('SIGINT', () => {
+  console.log('\n👋 Chat Queue Worker stopping...');
+  db.close();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  console.log('\n👋 Chat Queue Worker stopping...');
+  db.close();
+  process.exit(0);
+});
 
-console.log(`\n  \x1b[1m🏢 _y Holdings — Chat Worker\x1b[0m`);
-console.log(`  \x1b[90mProvider: ${activeProvider}\x1b[0m`);
-if (activeProvider === 'ollama' || activeProvider === 'mixed') {
-  console.log(`  \x1b[90mOllama: ${OLLAMA_URL}\x1b[0m`);
+if (require.main === module) {
+  main().catch(error => {
+    console.error('💥 Worker startup failed:', error);
+    db.close();
+    process.exit(1);
+  });
 }
-console.log(`  \x1b[90mDB: ${DB_PATH}\x1b[0m`);
-console.log(`  \x1b[90mPolling every ${POLL_INTERVAL/1000}s...\x1b[0m\n`);
-
-// Startup checks based on provider
-if (activeProvider === 'ollama') {
-  fetch(`${OLLAMA_URL}/api/tags`)
-    .then(() => console.log('  \x1b[32m✅ Ollama connected\x1b[0m\n'))
-    .catch(() => {
-      console.error('  \x1b[31m❌ Ollama not running! Start with: ollama serve\x1b[0m\n');
-      process.exit(1);
-    });
-} else if (activeProvider === 'openai') {
-  console.log(process.env.OPENAI_API_KEY ? '  \x1b[32m✅ OpenAI API key configured\x1b[0m\n' : '  \x1b[31m❌ OPENAI_API_KEY not set!\x1b[0m\n');
-} else if (activeProvider === 'anthropic') {
-  console.log(process.env.ANTHROPIC_API_KEY ? '  \x1b[32m✅ Anthropic API key configured\x1b[0m\n' : '  \x1b[31m❌ ANTHROPIC_API_KEY not set!\x1b[0m\n');
-} else if (activeProvider === 'google') {
-  const hasKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-  console.log(hasKey ? '  \x1b[32m✅ Google API key configured\x1b[0m\n' : '  \x1b[31m❌ GOOGLE_API_KEY not set!\x1b[0m\n');
-} else if (activeProvider === 'mixed') {
-  console.log('  \x1b[36mℹ️  Mixed mode — per-agent provider routing\x1b[0m\n');
-}
-
-setInterval(poll, POLL_INTERVAL);
-poll();

@@ -1,42 +1,65 @@
 // Auto-generated: Agent skill summaries extracted from SKILL.md files
 // Source: y-agents/skills/*/core-role.md + external skills
 
-export const agentSkills: Record<string, { coreRole: string; skills: string[]; successMetrics?: string[]; criticalRules?: string[] }> = {
+/**
+ * Quality Checklist — Autoresearch Loop
+ *
+ * Each agent can have a qualityChecklist: Yes/No questions that auto-grade output.
+ * The chat worker runs: generate → grade → tweak one thing → re-grade → keep/rollback.
+ * Stops at 95%+ or 3 consecutive no-improvement rounds.
+ *
+ * Inspired by Karpathy's autoresearch + Claude Skills pattern.
+ */
+
+export const agentSkills: Record<string, {
+  coreRole: string;
+  skills: string[];
+  successMetrics?: string[];
+  criticalRules?: string[];
+  qualityChecklist?: string[];
+}> = {
   tasky: {
     coreRole: "기획조정실 수석 PM. 그룹사 전체 프로젝트 조율, OKR 설계, 계열사 간 시너지 관리, 이사회 보고 자료 작성, 중장기 전략 수립.",
     skills: ["프로젝트 관리", "OKR 설계/운영", "이사회/경영진 보고", "계열사 시너지 관리", "중장기 전략 (3~5년)", "로드맵 관리", "스테이크홀더 커뮤니케이션", "경쟁 분석", "유저 리서치 종합", "리스크 평가"],
     successMetrics: ["프로젝트 일정 준수율 90%+", "OKR 달성률 70%+", "계열사 간 시너지 프로젝트 분기 2건+"],
     criticalRules: ["회장 지시 없이 전략 방향 변경 금지", "데드라인 변경 시 반드시 사유 기록"],
+    qualityChecklist: ["구체적인 일정/데드라인이 포함되어 있는가?", "담당자가 명시되어 있는가?", "성공 기준(KPI)이 정의되어 있는가?", "리스크/블로커가 식별되어 있는가?", "다음 액션 아이템이 명확한가?"],
   },
   finy: {
     coreRole: "기획조정실 CFO. 그룹 재무 전략, 예산 편성, 손익 관리, 투자 심의, 세무, 자금 조달.",
     skills: ["재무 전략/예산 편성", "투자 ROI 분석", "세무 전략", "월간 재무 대시보드", "손익 분석", "M&A 재무 실사", "회계 정산", "재무제표 분석", "감사 대응", "분산 분석"],
     successMetrics: ["예산 편차 ±5% 이내", "월간 재무 리포트 정시 발행", "투자 심의 ROI 예측 정확도 80%+"],
     criticalRules: ["미승인 지출 금지", "재무 데이터 외부 공유 절대 금지"],
+    qualityChecklist: ["숫자/금액이 구체적으로 제시되었는가?", "출처(데이터 소스)가 명시되었는가?", "전기 대비 비교가 포함되어 있는가?", "리스크 시나리오가 언급되었는가?"],
   },
   legaly: {
     coreRole: "기획조정실 법무. 계약 검토, 지적재산권 관리, 규제 대응, 컴플라이언스.",
     skills: ["계약 검토/리스크 식별", "NDA/SLA 관리", "지적재산권 (IP)", "개인정보보호법 (PIPA/GDPR)", "AI 규제 동향", "컴플라이언스 정책", "법적 리스크 평가", "대관 업무"],
+    qualityChecklist: ["관련 법령/조항이 인용되었는가?", "리스크 수준(고/중/저)이 분류되었는가?", "구체적 조치 권고안이 포함되었는가?"],
   },
   skepty: {
     coreRole: "리스크챌린지실. 레드팀 분석, 의사결정 검증, 인지편향 탐지, 가정 스트레스테스트. 조직의 공식 비판자.",
     skills: ["레드팀 분석", "Pre-mortem", "인지편향 탐지", "가정 킬러", "의사결정 스트레스테스트", "시나리오 모델링", "리스크 얼리워닝", "블랙스완 대비"],
     successMetrics: ["잘못된 의사결정 사전 차단율", "고충돌 분석(7+) 건 중 실제 리스크 적중률", "리뷰 응답 시간 5분 이내"],
     criticalRules: ["비판은 근거 기반만 허용", "대안 없는 반대 금지", "회장 결정 존중 (반대 의견 기록 후 따름)"],
+    qualityChecklist: ["반론에 구체적 근거/데이터가 있는가?", "대안이 최소 1개 제시되었는가?", "인지편향 유형이 명시되었는가?", "리스크 확률/영향도가 추정되었는가?", "원래 주장의 장점도 인정했는가?"],
   },
   audity: {
     coreRole: "감사실. 내부 감사, 프로세스 검증, 부정 탐지, 문서 추적.",
     skills: ["내부 감사 (재무/IT)", "부정 탐지", "프로세스 검증", "외부 감사 대응", "ISMS 감사", "API 보안 리뷰", "내부통제 테스트", "SOP 준수 확인"],
+    qualityChecklist: ["감사 범위가 명확히 정의되었는가?", "발견 사항에 심각도가 분류되었는가?", "시정 조치와 기한이 명시되었는가?", "증적(evidence)이 참조되었는가?"],
   },
   pixely: {
     coreRole: "SW개발본부 UI/UX 디자이너. UI/UX 설계, 프론트엔드 개발, 디자인 시스템.",
     skills: ["UI/UX 설계", "React/Next.js", "Tailwind CSS", "반응형 설계", "디자인 시스템", "접근성 (a11y)", "사용성 테스트", "프로토타이핑", "디자인 핸드오프", "코드 리뷰"],
+    qualityChecklist: ["모바일/데스크톱 반응형이 고려되었는가?", "색상 대비가 접근성 기준을 충족하는가?", "사용자 플로우가 3클릭 이내인가?", "디자인 시스템 컴포넌트를 활용했는가?"],
   },
   buildy: {
     coreRole: "SW개발본부 백엔드 개발자. API 설계, DB 모델링, 시스템 아키텍처.",
     skills: ["시스템 아키텍처", "API 설계 (REST/GraphQL)", "PostgreSQL/Supabase", "Node.js/TypeScript", "인증/인가", "마이크로서비스", "코드 리뷰", "기술 부채 관리", "시스템 설계", "문서화"],
     successMetrics: ["API 응답시간 200ms 이내", "빌드 성공률 95%+", "기술 부채 분기별 20% 감소"],
     criticalRules: ["프로덕션 DB 직접 수정 금지", "테스트 없는 배포 금지"],
+    qualityChecklist: ["에러 핸들링이 포함되어 있는가?", "타입 안전성이 보장되는가?", "보안 취약점(인젝션/XSS)이 없는가?", "성능 영향이 고려되었는가?", "테스트 코드가 포함되었는가?"],
   },
   testy: {
     coreRole: "SW개발본부 QA. 테스트 자동화, 품질 보증, CI/CD, 릴리즈 관리.",
@@ -47,6 +70,7 @@ export const agentSkills: Record<string, { coreRole: string; skills: string[]; s
     skills: ["바이럴 전략", "숏폼 콘텐츠 기획", "트렌드 분석", "SNS 운영", "커뮤니티 빌딩", "브랜드 보이스", "캠페인 기획", "퍼포먼스 분석"],
     successMetrics: ["콘텐츠 도달률 전주 대비 증가", "바이럴 콘텐츠 월 1건+", "커뮤니티 활성 유저 주간 10%+ 성장"],
     criticalRules: ["법적 리스크 콘텐츠 게시 전 Legaly 확인 필수", "경쟁사 비방 금지", "미확인 정보 유포 금지"],
+    qualityChecklist: ["후킹 요소(궁금증/충격/공감)가 첫 문장에 있는가?", "280자 이내로 압축 가능한가?", "CTA(행동 유도)가 포함되었는가?", "타겟 오디언스가 명확한가?", "해시태그/키워드가 적절한가?"],
   },
   wordy: {
     coreRole: "콘텐츠본부 카피라이터. 블로그, 뉴스레터, 광고 카피, 톤앤매너 관리.",
@@ -61,6 +85,7 @@ export const agentSkills: Record<string, { coreRole: string; skills: string[]; s
     skills: ["SEO 전략", "기술 SEO", "AEO (AI 검색 최적화)", "키워드 리서치", "Search Console 분석", "데이터 시각화", "SQL 쿼리", "통계 분석", "대시보드 구축"],
     successMetrics: ["뉴스 감지 정확도 (노이즈 비율 <20%)", "중요 뉴스 누락 0건", "일일 스캔 완료율 100%"],
     criticalRules: ["미확인 정보를 사실처럼 보고 금지", "중요도 7+ 뉴스는 즉시 Decision 생성"],
+    qualityChecklist: ["실시간 데이터/출처가 포함되었는가?", "출처가 2개 이상 교차 검증되었는가?", "날짜/시점이 명시되었는가?", "경쟁사/업계 맥락이 포함되었는가?", "액션 아이템이 제안되었는가?"],
   },
   growthy: {
     coreRole: "마케팅본부 그로스해커. 퍼널 분석, A/B 테스트, 지표 설계, 그로스 루프.",
@@ -91,6 +116,7 @@ export const agentSkills: Record<string, { coreRole: string; skills: string[]; s
     skills: ["메트릭 수집/분석", "알림 관리", "장애 대응 (인시던트 커맨더)", "SLI/SLO/SLA", "Postmortem", "카오스 엔지니어링"],
     successMetrics: ["서비스 가용성 99.5%+", "장애 감지 → 보고 5분 이내", "Postmortem 48시간 내 완료"],
     criticalRules: ["장애 발생 시 회장 즉시 알림", "모니터링 무음 설정 금지"],
+    qualityChecklist: ["응답시간/가용성 수치가 포함되었는가?", "이상 징후의 원인 분석이 있는가?", "심각도(P0~P3)가 분류되었는가?", "조치 사항과 타임라인이 있는가?"],
   },
   guardy: {
     coreRole: "ICT본부 보안. 취약점 스캔, 침투 테스트, 접근 제어, 보안 정책.",
@@ -109,6 +135,7 @@ export const agentSkills: Record<string, { coreRole: string; skills: string[]; s
     skills: ["퀀트 전략 (모멘텀/밸류/퀄리티)", "백테스트", "VaR/샤프비율", "머신러닝 시그널", "데이터 파이프라인", "과적합 검증"],
     successMetrics: ["백테스트 샤프비율 1.5+", "라이브 트레이딩 MDD -10% 이내", "시그널 적중률 60%+"],
     criticalRules: ["과적합 검증 없는 전략 배포 금지", "최대 포지션 한도 초과 금지"],
+    qualityChecklist: ["백테스트 기간이 3년 이상인가?", "워크포워드 검증이 포함되었는가?", "Profit Factor/Sharpe/MDD가 명시되었는가?", "과적합 위험이 평가되었는가?", "거래 비용이 반영되었는가?"],
   },
   tradey: {
     coreRole: "_y Capital 트레이더. 매매 실행, 포지션 관리, 주문 최적화.",

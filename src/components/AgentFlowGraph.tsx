@@ -1,9 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
-import { Network, CheckCircle2, RefreshCw, Clock, ClipboardList, X } from 'lucide-react';
-import { AGENT_ROSTER } from '@/data/agent-config';
-import { floors as floorData } from '@/data/floors';
+import { useCallback, useEffect, useState, useMemo, memo } from 'react';
+import { Network, CheckCircle2, RefreshCw, Clock, X } from 'lucide-react';
+import { AGENT_ROSTER, AgentConfig } from '@/data/agent-config';
 import {
   ReactFlow,
   Node,
@@ -18,209 +17,394 @@ import {
   Handle,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { AgentDetailModal } from '@/components/AgentDetailModal';
 
-// Agent data with positions in org flow
-// 실행(왼) → 감지 → 분석 → 검증 → 종합 → 회장(오른)
-const AGENT_NODES: { id: string; label: string; emoji: string; tier: string; group: string; x: number; y: number }[] = [
-  // 실행 — 5명 (제일 왼쪽)
-  { id: 'buildy', label: 'Buildy', emoji: 'BU', tier: 'Director', group: 'execute', x: 0, y: 0 },
-  { id: 'wordy', label: 'Wordy', emoji: 'WO', tier: 'Manager', group: 'execute', x: 0, y: 190 },
-  { id: 'pixely', label: 'Pixely', emoji: 'PX', tier: 'Manager', group: 'execute', x: 0, y: 380 },
-  { id: 'helpy', label: 'Helpy', emoji: 'HE', tier: 'Staff', group: 'execute', x: 0, y: 570 },
-  { id: 'stacky', label: 'Stacky', emoji: 'ST', tier: 'Director', group: 'execute', x: 0, y: 760 },
+/* ═══════════════════════════════════════════════════════
+   Props
+   ═══════════════════════════════════════════════════════ */
 
-  // 감지 — 4명
-  { id: 'searchy', label: 'Searchy', emoji: 'SE', tier: 'Manager', group: 'detect', x: 260, y: 50 },
-  { id: 'watchy', label: 'Watchy', emoji: 'WA', tier: 'Manager', group: 'detect', x: 260, y: 270 },
-  { id: 'tradey', label: 'Tradey', emoji: 'TR', tier: 'Manager', group: 'detect', x: 260, y: 490 },
-  { id: 'opsy', label: 'Opsy', emoji: 'OP', tier: 'Director', group: 'detect', x: 260, y: 710 },
-  
-  // 분석 — 3명
-  { id: 'tasky', label: 'Tasky', emoji: 'TA', tier: 'C-Suite', group: 'analyze', x: 530, y: 150 },
-  { id: 'buzzy', label: 'Buzzy', emoji: 'BZ', tier: 'Director', group: 'analyze', x: 530, y: 380 },
-  { id: 'quanty', label: 'Quanty', emoji: 'QU', tier: 'Director', group: 'analyze', x: 530, y: 610 },
+interface AgentFlowGraphProps {
+  ko?: boolean;
+  directiveId?: string | null;
+  directiveAgents?: string[];
+  showCompleteOverlay?: boolean;
+  onCloseOverlay?: () => void;
+  onViewReport?: () => void;
+  /* backward-compat with TowerView */
+  open?: boolean;
+  onClose?: () => void;
+  lang?: 'ko' | 'en';
+}
 
-  // 검증 — 2명
-  { id: 'skepty', label: 'Skepty', emoji: 'SK', tier: 'Director', group: 'review', x: 780, y: 280 },
-  { id: 'finy', label: 'Finy', emoji: 'FI', tier: 'C-Suite', group: 'review', x: 780, y: 480 },
-  
-  // 비서실장
-  { id: 'counsely', label: 'Counsely', emoji: 'CO', tier: 'C-Suite', group: 'synthesis', x: 1030, y: 380 },
-  
-  // 회장 — 오른쪽 (최종 결정)
-  { id: 'chairman', label: 'Chairman', emoji: 'CH', tier: 'Chairman', group: 'decision', x: 1280, y: 380 },
-];
+/* ═══════════════════════════════════════════════════════
+   Constants
+   ═══════════════════════════════════════════════════════ */
 
-// Clean pyramid — each node connects to ONE direct superior only
-type FlowEdge = { source: string; target: string; label?: string; animated?: boolean };
-const FLOW_EDGES: FlowEdge[] = [
-  // 감지 → 분석 (right to left)
-  { source: 'searchy', target: 'tasky', animated: true },
-  { source: 'watchy', target: 'buzzy' },
-  { source: 'tradey', target: 'quanty' },
-  { source: 'opsy', target: 'quanty' },
-  // 분석 → 검증
-  { source: 'tasky', target: 'skepty', animated: true },
-  { source: 'buzzy', target: 'skepty' },
-  { source: 'quanty', target: 'finy' },
-  // 검증 → 종합
-  { source: 'skepty', target: 'counsely', animated: true },
-  { source: 'finy', target: 'counsely' },
-  // 종합 → 회장
-  { source: 'counsely', target: 'chairman', animated: true },
-  // 피드백: 실행 → 감지
-  { source: 'buildy', target: 'searchy' },
-  { source: 'stacky', target: 'opsy' },
-];
+type TierKey = 'C' | 'Director' | 'Manager' | 'Staff';
 
-const TIER_COLORS: Record<string, string> = {
-  'Chairman': '#f59e0b',
-  'C-Suite': '#8b5cf6',
-  'Director': '#3b82f6',
-  'Manager': '#10b981',
-  'Staff': '#6b7280',
+const TIER_ORDER: TierKey[] = ['C', 'Director', 'Manager', 'Staff'];
+
+const TIER_COLORS: Record<TierKey, { border: string; bg: string; label: string; glow: string }> = {
+  C:        { border: '#f59e0b', bg: 'rgba(245,158,11,0.06)',  label: '#fbbf24', glow: '#f59e0b' },
+  Director: { border: '#8b5cf6', bg: 'rgba(139,92,246,0.06)',  label: '#a78bfa', glow: '#8b5cf6' },
+  Manager:  { border: '#3b82f6', bg: 'rgba(59,130,246,0.06)',  label: '#60a5fa', glow: '#3b82f6' },
+  Staff:    { border: '#6b7280', bg: 'rgba(107,114,128,0.06)', label: '#9ca3af', glow: '#6b7280' },
 };
 
-const GROUP_LABELS_KO: [string, string][] = [
-  ['execute', '실행'],
-  ['detect', '감지'],
-  ['analyze', '분석'],
-  ['review', '검증'],
-  ['synthesis', '종합'],
-  ['decision', '회장'],
-];
-const GROUP_LABELS_EN: [string, string][] = [
-  ['execute', 'EXECUTE'],
-  ['detect', 'DETECT'],
-  ['analyze', 'ANALYZE'],
-  ['review', 'REVIEW'],
-  ['synthesis', 'SYNTHESIS'],
-  ['decision', 'CHAIRMAN'],
-];
+const TIER_LABELS: Record<TierKey, { en: string; ko: string }> = {
+  C:        { en: 'C-Suite',  ko: '임원' },
+  Director: { en: 'Director', ko: '본부장' },
+  Manager:  { en: 'Manager',  ko: '팀장' },
+  Staff:    { en: 'Staff',    ko: '사원' },
+};
 
-// Custom node component
-function AgentNode({ data }: { data: any }) {
-  const [pulse, setPulse] = useState(false);
-  
-  useEffect(() => {
-    if (data.active) {
-      const interval = setInterval(() => {
-        setPulse(p => !p);
-      }, 2000 + Math.random() * 2000);
-      return () => clearInterval(interval);
-    }
-  }, [data.active]);
+/* Layout constants */
+const NODE_W = 100;
+const NODE_H = 95;
+const H_GAP = 16;
+const V_GAP = 12;
+const GROUP_PAD_TOP = 52;
+const GROUP_PAD_X = 28;
+const GROUP_PAD_BOTTOM = 22;
+const TIER_GAP = 90;
+const MAX_PER_ROW = 8;
 
-  const handleNodeClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (data.onAgentClick) {
-      data.onAgentClick(data.id);
-    }
-  };
+/* ═══════════════════════════════════════════════════════
+   Layout computation
+   ═══════════════════════════════════════════════════════ */
 
-  const handleBadgeClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (data.onAgentClick) {
-      data.onAgentClick(data.id);
-    }
-  };
+function groupByTier(agents: AgentConfig[]): Record<TierKey, AgentConfig[]> {
+  const groups: Record<TierKey, AgentConfig[]> = { C: [], Director: [], Manager: [], Staff: [] };
+  agents.forEach(a => {
+    const tier = a.tier as TierKey;
+    if (groups[tier]) groups[tier].push(a);
+  });
+  return groups;
+}
 
-  const ds = data.directiveStatus;
-  const isDirectiveAgent = !!ds;
-  const borderColor = ds === 'completed' ? '#22c55e' : ds === 'processing' ? '#f59e0b' : ds === 'pending' ? '#8b5cf6' : TIER_COLORS[data.tier] || '#6b7280';
-  const glowColor = ds === 'completed' ? '#22c55e' : ds === 'processing' ? '#f59e0b' : ds === 'pending' ? '#8b5cf6' : TIER_COLORS[data.tier];
+interface LayoutResult {
+  nodes: Node[];
+  edges: Edge[];
+  totalWidth: number;
+  totalHeight: number;
+}
 
+function computeLayout(
+  agents: AgentConfig[],
+  ko: boolean,
+  isMobile: boolean,
+  directiveStatuses: Record<string, 'pending' | 'processing' | 'completed'>,
+  onAgentClick: (id: string) => void,
+): LayoutResult {
+  const grouped = groupByTier(agents);
+  const perRow = isMobile ? 3 : MAX_PER_ROW;
+  const nodeW = isMobile ? 75 : NODE_W;
+  const nodeH = isMobile ? 80 : NODE_H;
+  const hGap = isMobile ? 10 : H_GAP;
+  const vGap = isMobile ? 8 : V_GAP;
+  const padTop = isMobile ? 42 : GROUP_PAD_TOP;
+  const padX = isMobile ? 18 : GROUP_PAD_X;
+  const padBot = isMobile ? 16 : GROUP_PAD_BOTTOM;
+  const tierGap = isMobile ? 70 : TIER_GAP;
+
+  // Compute dimensions for each tier group
+  const tierDims: Record<TierKey, { w: number; h: number; cols: number; rows: number }> = {} as any;
+  let maxGroupW = 0;
+
+  TIER_ORDER.forEach(tier => {
+    const count = grouped[tier].length;
+    const cols = Math.min(count, perRow);
+    const rows = Math.ceil(count / perRow);
+    const w = cols * (nodeW + hGap) - hGap + 2 * padX;
+    const h = padTop + rows * (nodeH + vGap) - vGap + padBot;
+    tierDims[tier] = { w, h, cols, rows };
+    if (w > maxGroupW) maxGroupW = w;
+  });
+
+  // Center everything
+  const totalWidth = maxGroupW + 100;
+  const nodes: Node[] = [];
+  let currentY = 40;
+
+  TIER_ORDER.forEach(tier => {
+    const { w, h, cols } = tierDims[tier];
+    const groupX = (totalWidth - w) / 2;
+    const colors = TIER_COLORS[tier];
+    const count = grouped[tier].length;
+    const label = ko
+      ? `${TIER_LABELS[tier].ko} (${count})`
+      : `${TIER_LABELS[tier].en} (${count})`;
+
+    // Group node
+    nodes.push({
+      id: `tier-${tier}`,
+      type: 'tierGroup',
+      position: { x: groupX, y: currentY },
+      data: {
+        label,
+        width: w,
+        height: h,
+        borderColor: colors.border,
+        bgColor: colors.bg,
+        labelColor: colors.label,
+      },
+      style: { width: w, height: h },
+      draggable: false,
+      selectable: false,
+    });
+
+    // Agent child nodes
+    grouped[tier].forEach((agent, idx) => {
+      const row = Math.floor(idx / perRow);
+      const col = idx % perRow;
+      const agentsInRow = Math.min(count - row * perRow, perRow);
+      const rowW = agentsInRow * (nodeW + hGap) - hGap;
+      const rowOffsetX = (w - 2 * padX - rowW) / 2;
+      const relX = padX + rowOffsetX + col * (nodeW + hGap);
+      const relY = padTop + row * (nodeH + vGap);
+
+      nodes.push({
+        id: agent.id,
+        type: 'agentCircle',
+        parentId: `tier-${tier}`,
+        extent: 'parent' as const,
+        position: { x: relX, y: relY },
+        data: {
+          id: agent.id,
+          label: agent.name,
+          emoji: agent.emoji || agent.name.slice(0, 2).toUpperCase(),
+          tier,
+          number: agent.number,
+          directiveStatus: directiveStatuses[agent.id] || null,
+          nodeW: nodeW,
+          onAgentClick,
+        },
+        draggable: false,
+      });
+    });
+
+    currentY += h + tierGap;
+  });
+
+  const totalHeight = currentY - tierGap + 40;
+
+  // Edges between tiers (pointing upward: Staff→Manager→Director→C-Suite)
+  const edges: Edge[] = [];
+  for (let i = TIER_ORDER.length - 1; i > 0; i--) {
+    const src = TIER_ORDER[i];
+    const tgt = TIER_ORDER[i - 1];
+    edges.push({
+      id: `tier-edge-${src}-${tgt}`,
+      source: `tier-${src}`,
+      target: `tier-${tgt}`,
+      sourceHandle: 'top',
+      targetHandle: 'bottom',
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#ffffff20', strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#ffffff30', width: 18, height: 18 },
+      label: ko ? '보고' : 'reports to',
+      labelStyle: { fill: '#ffffff30', fontSize: 11, fontWeight: 500 },
+      labelBgStyle: { fill: '#030712', fillOpacity: 0.9 },
+      labelBgPadding: [6, 3] as [number, number],
+      labelBgBorderRadius: 4,
+    });
+  }
+
+  return { nodes, edges, totalWidth, totalHeight };
+}
+
+/* ═══════════════════════════════════════════════════════
+   Custom Node: Tier Group
+   ═══════════════════════════════════════════════════════ */
+
+function TierGroupNodeComponent({ data }: { data: any }) {
   return (
-    <div className={`relative flex flex-col items-center transition-all duration-500 ${pulse ? 'scale-110' : 'scale-100'} ${ds === 'processing' ? 'animate-pulse' : ''}`}>
-      <Handle type="target" position={Position.Left} className="!bg-transparent !border-0 !w-3 !h-3" />
-      
-      {/* Glow ring — stronger for directive agents */}
-      {(data.active || isDirectiveAgent) && (
-        <div className={`absolute -inset-2 rounded-full opacity-20 ${ds === 'processing' ? 'animate-ping' : ds === 'completed' ? '' : 'animate-ping'}`}
-          style={{ backgroundColor: glowColor }} />
-      )}
-      {ds === 'processing' && (
-        <div className="absolute -inset-3 rounded-full border-2 border-amber-400/50 animate-spin" style={{ borderTopColor: 'transparent', borderRightColor: 'transparent' }} />
-      )}
-      
-      <div 
-        className="w-14 h-14 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 relative z-10 shadow-lg cursor-pointer hover:scale-105 transition-transform"
-        style={{ 
-          borderColor,
-          boxShadow: isDirectiveAgent ? `0 0 25px ${glowColor}60` : data.active ? `0 0 20px ${TIER_COLORS[data.tier]}40` : 'none',
-        }}
-        onClick={handleNodeClick}
+    <div
+      style={{
+        width: data.width,
+        height: data.height,
+        borderColor: data.borderColor,
+        backgroundColor: data.bgColor,
+      }}
+      className="rounded-2xl border-2 relative"
+    >
+      <Handle type="target" position={Position.Top} id="top"
+        className="!bg-transparent !border-0 !w-1 !h-1" style={{ top: -1 }} />
+      <div
+        className="absolute top-3 left-4 text-[13px] sm:text-sm font-bold tracking-wide"
+        style={{ color: data.labelColor }}
       >
-        <img 
-          src={data.image || `/agents/${data.id}.png`} 
-          alt={data.label}
-          className="w-full h-full object-cover"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="flex items-center justify-center w-full h-full text-xl sm:text-3xl" style="background:${TIER_COLORS[data.tier] || '#6b7280'}20">${data.emoji}</span>`; }}
-        />
+        {data.label}
       </div>
-      <span className="text-xs sm:text-[16px] font-bold mt-1 sm:mt-1.5 text-white/90">{data.label}</span>
-      <span className="text-[9px] sm:text-[13px] text-white/50">{(() => {
-        if (data.desc) return data.desc.split('—')[0]?.trim();
-        const tierKo: Record<string, string> = { Chairman: '회장', 'C-Suite': '임원', Director: '본부장', Manager: '팀장', Staff: '사원' };
-        return data.lang === 'ko' ? (tierKo[data.tier] || data.tier) : data.tier;
-      })()}</span>
-      {/* Task status for directive agents */}
-      {ds && (
-        <div className="mt-1 max-w-[120px] sm:max-w-[160px]">
-          <div className={`text-[10px] sm:text-[12px] px-2 py-1 rounded-lg text-center font-medium shadow-lg ${
-            ds === 'completed' ? 'bg-green-500/30 text-green-200 border border-green-500/40' : 
-            ds === 'processing' ? 'bg-amber-500/30 text-amber-200 border border-amber-500/40 animate-pulse' : 
-            'bg-purple-500/30 text-purple-200 border border-purple-500/40'
-          }`}>
-            {ds === 'completed' ? <><CheckCircle2 className="w-3 h-3 inline text-green-400" /> Done</> : ds === 'processing' ? <><RefreshCw className="w-3 h-3 inline animate-spin" /> Analyzing...</> : <><Clock className="w-3 h-3 inline" /> Queued</>}
-          </div>
-        </div>
-      )}
-
-      {/* Directive status badge */}
-      {ds && (
-        <div className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center z-20 text-[12px] shadow-lg ${
-          ds === 'completed' ? 'bg-green-500' : ds === 'processing' ? 'bg-amber-500 animate-pulse' : 'bg-purple-500'
-        }`}>
-          {' '}
-        </div>
-      )}
-      {!ds && data.taskCount > 0 && (
-        <button
-          onClick={handleBadgeClick}
-          className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-400 text-white text-[11px] w-5 h-5 rounded-full flex items-center justify-center z-20 transition-colors cursor-pointer shadow-lg hover:shadow-xl hover:scale-110 transform"
-          title={data.lang === 'ko' ? '클릭하여 상세 보기' : 'Click for details'}
-        >
-          {data.taskCount}
-        </button>
-      )}
-      
-      <Handle type="source" position={Position.Right} className="!bg-transparent !border-0 !w-3 !h-3" />
+      <Handle type="source" position={Position.Bottom} id="bottom"
+        className="!bg-transparent !border-0 !w-1 !h-1" style={{ bottom: -1 }} />
     </div>
   );
 }
 
-const nodeTypes = { agent: AgentNode };
+const TierGroupNode = memo(TierGroupNodeComponent);
 
-interface Props {
-  open: boolean;
-  onClose: () => void;
-  lang?: 'ko' | 'en';
+/* ═══════════════════════════════════════════════════════
+   Custom Node: Agent Circle
+   ═══════════════════════════════════════════════════════ */
+
+function AgentCircleNodeComponent({ data }: { data: any }) {
+  const ds = data.directiveStatus;
+  const tierColors = TIER_COLORS[data.tier as TierKey] || TIER_COLORS.Staff;
+  const borderColor = ds === 'completed' ? '#22c55e' : ds === 'processing' ? '#f59e0b' : ds === 'pending' ? '#8b5cf6' : tierColors.border;
+  const size = data.nodeW ? Math.min(data.nodeW - 16, 64) : 56;
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    data.onAgentClick?.(data.id);
+  };
+
+  return (
+    <div
+      className="flex flex-col items-center cursor-pointer group"
+      style={{ width: data.nodeW || NODE_W }}
+      onClick={handleClick}
+    >
+      {/* Pulse ring for directive agents */}
+      <div className="relative" style={{ width: size + 8, height: size + 8 }}>
+        {ds === 'pending' && (
+          <div className="absolute inset-0 rounded-full animate-ping opacity-30"
+            style={{ backgroundColor: '#8b5cf6' }} />
+        )}
+        {ds === 'processing' && (
+          <div className="absolute inset-[-4px] rounded-full border-2 border-amber-400/60 animate-spin"
+            style={{ borderTopColor: 'transparent', borderRightColor: 'transparent' }} />
+        )}
+        {ds === 'completed' && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center z-20 shadow-lg">
+            <CheckCircle2 className="w-3 h-3 text-white" />
+          </div>
+        )}
+        <div
+          className="rounded-full overflow-hidden border-2 shadow-lg group-hover:scale-110 transition-transform mx-auto"
+          style={{
+            width: size,
+            height: size,
+            borderColor,
+            boxShadow: ds ? `0 0 20px ${borderColor}40` : 'none',
+            margin: 4,
+          }}
+        >
+          <img
+            src={`/agents/${data.number}-${data.id}.png`}
+            alt={data.label}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const el = e.target as HTMLImageElement;
+              el.style.display = 'none';
+              if (el.parentElement) {
+                el.parentElement.innerHTML = `<span class="flex items-center justify-center w-full h-full text-lg" style="background:${tierColors.bg}">${data.emoji}</span>`;
+              }
+            }}
+          />
+        </div>
+      </div>
+
+      <span className="text-[11px] sm:text-[13px] font-semibold mt-1 text-white/90 text-center leading-tight">
+        {data.label}
+      </span>
+
+      {/* Directive status badge */}
+      {ds && (
+        <span className={`text-[9px] px-1.5 py-0.5 rounded-full mt-0.5 font-medium ${
+          ds === 'completed' ? 'bg-green-500/25 text-green-300' :
+          ds === 'processing' ? 'bg-amber-500/25 text-amber-300 animate-pulse' :
+          'bg-purple-500/25 text-purple-300'
+        }`}>
+          {ds === 'completed' ? '✓' : ds === 'processing' ? '⟳' : '…'}
+        </span>
+      )}
+    </div>
+  );
 }
 
-export default function AgentFlowGraph({ open, onClose, lang = 'ko' }: Props) {
-  const ko = lang === 'ko';
-  const [decisions, setDecisions] = useState<any[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
+const AgentCircleNode = memo(AgentCircleNodeComponent);
+
+/* ═══════════════════════════════════════════════════════
+   Node Types registry
+   ═══════════════════════════════════════════════════════ */
+
+const nodeTypes = {
+  tierGroup: TierGroupNode,
+  agentCircle: AgentCircleNode,
+};
+
+/* ═══════════════════════════════════════════════════════
+   Main Component
+   ═══════════════════════════════════════════════════════ */
+
+export default function AgentFlowGraph({
+  ko: koProp,
+  directiveId,
+  directiveAgents: directiveAgentList,
+  showCompleteOverlay: showCompleteOverlayProp,
+  onCloseOverlay,
+  onViewReport,
+  /* backward compat */
+  open,
+  onClose,
+  lang,
+}: AgentFlowGraphProps) {
+  const ko = koProp ?? (lang === 'ko');
+
+  /* Visibility: if `open` prop is provided, respect it */
+  if (open === false) return null;
+
+  return (
+    <AgentFlowGraphInner
+      ko={ko}
+      directiveId={directiveId}
+      directiveAgentList={directiveAgentList}
+      showCompleteOverlayProp={showCompleteOverlayProp}
+      onCloseOverlay={onCloseOverlay}
+      onViewReport={onViewReport}
+      onClose={onClose}
+    />
+  );
+}
+
+interface InnerProps {
+  ko: boolean;
+  directiveId?: string | null;
+  directiveAgentList?: string[];
+  showCompleteOverlayProp?: boolean;
+  onCloseOverlay?: () => void;
+  onViewReport?: () => void;
+  onClose?: () => void;
+}
+
+function AgentFlowGraphInner({
+  ko,
+  directiveId: directiveIdProp,
+  directiveAgentList,
+  showCompleteOverlayProp,
+  onCloseOverlay,
+  onViewReport,
+  onClose,
+}: InnerProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [directiveAgents, setDirectiveAgents] = useState<Record<string, 'pending' | 'processing' | 'completed'>>({});
-  const [activeDirective, setActiveDirective] = useState<string | null>(null);
-  const [agentTasks, setAgentTasks] = useState<Record<string, string>>({});
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Directive status polling
+  const [directiveStatuses, setDirectiveStatuses] = useState<Record<string, 'pending' | 'processing' | 'completed'>>({});
+  const [activeDirectiveName, setActiveDirectiveName] = useState<string | null>(null);
+  const [showCompleteOverlay, setShowCompleteOverlay] = useState(false);
+  const [confettiParticles, setConfettiParticles] = useState<{ x: number; y: number; color: string; delay: number }[]>([]);
+
+  // Detect mobile
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const handleAgentClick = useCallback((agentId: string) => {
     setSelectedAgentId(agentId);
@@ -232,195 +416,101 @@ export default function AgentFlowGraph({ open, onClose, lang = 'ko' }: Props) {
     setSelectedAgentId(null);
   }, []);
 
-  // Fetch real data
+  // Poll directive status from chat_queue
   useEffect(() => {
-    if (!open) return;
-    
-    Promise.all([
-      fetch('/api/decisions?select=*&order=created_at.desc&limit=20', 
-        ).then(r => r.json()).catch(() => []),
-      fetch('/api/reports?report_type=neq.health_check&report_type=neq.directive&select=agent_id,title,created_at&order=created_at.desc&limit=20',
-        ).then(r => r.json()).catch(() => []),
-    ]).then(([d, r]) => {
-      setDecisions(d);
-      setReports(r);
-    });
-  }, [open]);
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    if (!SUPABASE_URL || !key) return;
 
-  // Poll directive agent status from chat_queue
-  useEffect(() => {
-    if (!open) return;
-    
-    const pollDirectiveStatus = async () => {
+    const poll = async () => {
       try {
-        // Find in_progress directives
-        const dRes = await fetch("/api/decisions?status=eq.in_progress&order=created_at.desc&limit=1");
+        if (directiveIdProp) {
+          // Use provided directive ID
+          const qRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/chat_queue?metadata->>directive_id=eq.${directiveIdProp}&select=agent_id,status`,
+            { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+          );
+          const tasks = await qRes.json();
+          const statuses: Record<string, 'pending' | 'processing' | 'completed'> = {};
+          (tasks || []).forEach((t: any) => {
+            statuses[t.agent_id] =
+              t.status === 'completed' || t.status === 'done' || t.status === 'error'
+                ? 'completed'
+                : t.status === 'processing'
+                  ? 'processing'
+                  : 'pending';
+          });
+          setDirectiveStatuses(statuses);
+          return;
+        }
+
+        // Auto-detect active directive
+        const dRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/decisions?status=eq.in_progress&order=created_at.desc&limit=1`,
+          { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+        );
         const inProgress = await dRes.json();
         if (!inProgress?.length) {
-          // Don't clear if overlay is showing (completed state)
-          if (!showCompleteOverlay) { setDirectiveAgents({}); setActiveDirective(null); }
+          if (!showCompleteOverlay) {
+            setDirectiveStatuses({});
+            setActiveDirectiveName(null);
+          }
           return;
         }
 
         const directive = inProgress[0];
-        setActiveDirective(directive.title || directive.id);
+        setActiveDirectiveName(directive.title || directive.id);
 
-        // Get chat_queue tasks for this directive
-        const qRes = await fetch('/api/chat_queue?metadata->>directive_id=eq.${directive.id}&select=agent_id,status,message');
+        const qRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/chat_queue?metadata->>directive_id=eq.${directive.id}&select=agent_id,status`,
+          { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+        );
         const tasks = await qRes.json();
         const statuses: Record<string, 'pending' | 'processing' | 'completed'> = {};
-        const taskMap: Record<string, string> = {};
         (tasks || []).forEach((t: any) => {
-          statuses[t.agent_id] = (t.status === 'completed' || t.status === 'done' || t.status === 'error') ? 'completed' : t.status === 'processing' ? 'processing' : 'pending';
-          // Extract directive title from message
-          const titleMatch = t.message?.match(/Title:\s*(.+)/);
-          taskMap[t.agent_id] = titleMatch?.[1]?.trim() || directive.title || '';
+          statuses[t.agent_id] =
+            t.status === 'completed' || t.status === 'done' || t.status === 'error'
+              ? 'completed'
+              : t.status === 'processing'
+                ? 'processing'
+                : 'pending';
         });
-        setDirectiveAgents(statuses);
-        setAgentTasks(taskMap);
-      } catch { /* ignore */ }
+        setDirectiveStatuses(statuses);
+      } catch {
+        /* ignore */
+      }
     };
 
-    pollDirectiveStatus();
-    const interval = setInterval(pollDirectiveStatus, 5000);
+    poll();
+    const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
-  }, [open]);
+  }, [directiveIdProp, showCompleteOverlay]);
 
-  // Build active agent set from recent data
-  const activeAgents = useMemo(() => {
-    const set = new Set<string>();
-    const dayAgo = Date.now() - 86400000;
-    decisions.forEach(d => {
-      if (new Date(d.created_at).getTime() > dayAgo) {
-        if (d.current_assignee) set.add(d.current_assignee);
-        set.add('skepty');
-        set.add('counsely');
-      }
-    });
-    reports.forEach(r => {
-      if (new Date(r.created_at).getTime() > dayAgo) {
-        set.add(r.agent_id);
-      }
-    });
-    return set;
-  }, [decisions, reports]);
-
-  // Agent task counts
-  const taskCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    reports.forEach(r => {
-      counts[r.agent_id] = (counts[r.agent_id] || 0) + 1;
-    });
-    return counts;
-  }, [reports]);
-
-  const agentDescs: Record<string, string> = {};
-  const agentRoles: Record<string, string> = {};
-  const agentImages: Record<string, string> = { chairman: '/agents/00-andrew.png' };
-  // Initialize from imported data
-  AGENT_ROSTER.forEach((r) => { agentDescs[r.id] = r.desc || ''; agentImages[r.id] = `/agents/${r.number}-${r.id}.png`; });
-  floorData.forEach((f) => f.agents?.forEach((a) => { agentRoles[a.id] = a.role || ''; }));
-  agentDescs['chairman'] = '회장 — 최종 의사결정';
-  agentRoles['chairman'] = 'Final Decision';
-
-  const initialNodes: Node[] = AGENT_NODES.map(a => ({
-    id: a.id,
-    type: 'agent',
-    position: { x: a.x, y: a.y },
-    data: { 
-      id: a.id,
-      label: a.label, 
-      emoji: a.emoji, 
-      tier: a.tier,
-      image: agentImages[a.id] || '',
-      desc: ko ? (agentDescs[a.id] || '') : (agentRoles[a.id] || ''),
-      lang,
-      active: activeAgents.has(a.id),
-      directiveStatus: directiveAgents[a.id] || null, taskLabel: agentTasks[a.id] || null,
-      taskCount: taskCounts[a.id] || 0,
-      onAgentClick: handleAgentClick,
-    },
-    draggable: true,
-  }));
-
-  // Feedback edges (실행→감지, dashed cyan)
-  const feedbackPairs = new Set(['buildy→searchy', 'stacky→opsy']);
-  const feedbackSources = new Set(['stacky', 'buildy']);
-  const feedbackTargets = new Set(['opsy', 'searchy']);
-
-  const initialEdges: Edge[] = FLOW_EDGES.map((e, i) => {
-    const isActive = e.animated || activeAgents.has(e.source);
-    const isFeedback = feedbackSources.has(e.source) && feedbackTargets.has(e.target);
-    return {
-      id: `e-${i}`,
-      source: e.source,
-      target: e.target,
-      animated: isActive || isFeedback,
-      style: { 
-        stroke: isFeedback ? '#06b6d4' : (isActive ? '#f59e0b' : '#ffffff20'),
-        strokeWidth: isActive ? 2 : 1.5,
-        strokeDasharray: isFeedback ? '6 3' : undefined,
-      },
-      markerEnd: { type: MarkerType.ArrowClosed, color: isFeedback ? '#06b6d4' : (isActive ? '#f59e0b' : '#ffffff30'), width: 14, height: 14 },
-    };
-  });
-
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  // Update nodes when data changes
+  // Apply directiveAgentList as pending if provided
   useEffect(() => {
-    setNodes(AGENT_NODES.map(a => ({
-      id: a.id,
-      type: 'agent',
-      position: { x: a.x, y: a.y },
-      data: { 
-        id: a.id,
-        label: a.label, 
-        emoji: a.emoji, 
-        tier: a.tier,
-        image: agentImages[a.id] || '',
-        desc: ko ? (agentDescs[a.id] || '') : (agentRoles[a.id] || ''),
-        lang,
-        active: activeAgents.has(a.id),
-        directiveStatus: directiveAgents[a.id] || null, taskLabel: agentTasks[a.id] || null,
-        taskCount: taskCounts[a.id] || 0,
-        onAgentClick: handleAgentClick,
-      },
-      draggable: true,
-    })));
-    setEdges(FLOW_EDGES.map((e, i) => {
-      const isActive = e.animated || activeAgents.has(e.source);
-      return {
-        id: `e-${i}`,
-        source: e.source,
-        target: e.target,
-        label: e.label,
-        animated: isActive,
-        style: { 
-          stroke: isActive ? '#f59e0b' : '#ffffff30',
-          strokeWidth: isActive ? 2.5 : 1.5,
-        },
-        labelStyle: { fill: isActive ? '#fbbf24' : '#ffffff50', fontSize: 10, fontWeight: isActive ? 600 : 400 },
-        labelBgStyle: { fill: '#0a0f1a', fillOpacity: 0.9 },
-        labelBgPadding: [4, 2] as [number, number],
-        labelBgBorderRadius: 4,
-        markerEnd: { type: MarkerType.ArrowClosed, color: isActive ? '#f59e0b' : '#ffffff40', width: 16, height: 16 },
-      };
-    }));
-  }, [activeAgents, taskCounts, directiveAgents, agentTasks, handleAgentClick]);
+    if (directiveAgentList?.length) {
+      setDirectiveStatuses(prev => {
+        const next = { ...prev };
+        directiveAgentList.forEach(id => {
+          if (!next[id]) next[id] = 'pending';
+        });
+        return next;
+      });
+    }
+  }, [directiveAgentList]);
 
-  // Detect all agents completed
-  const directiveAgentCount = Object.keys(directiveAgents).length;
-  const completedCount = Object.values(directiveAgents).filter(s => s === 'completed').length;
+  // All-completed detection
+  const directiveAgentCount = Object.keys(directiveStatuses).length;
+  const completedCount = Object.values(directiveStatuses).filter(s => s === 'completed').length;
   const allCompleted = directiveAgentCount > 0 && completedCount === directiveAgentCount;
-  const [showCompleteOverlay, setShowCompleteOverlay] = useState(false);
-  const [confettiParticles, setConfettiParticles] = useState<{ x: number; y: number; color: string; delay: number }[]>([]);
 
   useEffect(() => {
+    if (showCompleteOverlayProp !== undefined) {
+      setShowCompleteOverlay(showCompleteOverlayProp);
+      return;
+    }
     if (allCompleted && !showCompleteOverlay) {
-      // Generate confetti
-      const particles = Array.from({ length: 40 }, () => ({
+      const particles = Array.from({ length: 50 }, () => ({
         x: Math.random() * 100,
         y: Math.random() * 100,
         color: ['#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#ef4444'][Math.floor(Math.random() * 5)],
@@ -429,41 +519,74 @@ export default function AgentFlowGraph({ open, onClose, lang = 'ko' }: Props) {
       setConfettiParticles(particles);
       setTimeout(() => setShowCompleteOverlay(true), 1000);
     }
-  }, [allCompleted]);
+  }, [allCompleted, showCompleteOverlayProp]);
 
-  const openDashboardDone = () => {
-    onClose();
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('y-navigate', { detail: { view: 'dashboard', tab: 'done' } }));
-    }, 300);
+  // Compute layout
+  const layout = useMemo(
+    () => computeLayout(AGENT_ROSTER, ko, isMobile, directiveStatuses, handleAgentClick),
+    [ko, isMobile, directiveStatuses, handleAgentClick],
+  );
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(layout.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(layout.edges);
+
+  useEffect(() => {
+    setNodes(layout.nodes);
+    setEdges(layout.edges);
+  }, [layout, setNodes, setEdges]);
+
+  const handleCloseOverlay = () => {
+    if (onCloseOverlay) {
+      onCloseOverlay();
+    } else {
+      setShowCompleteOverlay(false);
+    }
   };
 
-  if (!open) return null;
+  const handleViewReport = () => {
+    if (onViewReport) {
+      onViewReport();
+    } else if (onClose) {
+      onClose();
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('y-navigate', { detail: { view: 'dashboard', tab: 'done' } }));
+      }, 300);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full h-full sm:w-[96vw] sm:h-[94vh] sm:max-w-[1400px] bg-[#060a14]/98 sm:border sm:border-white/10 rounded-none sm:rounded-2xl overflow-hidden flex flex-col">
-        
+      <div className="relative w-full h-full sm:w-[96vw] sm:h-[94vh] sm:max-w-[1400px] bg-[#030712]/98 sm:border sm:border-white/10 rounded-none sm:rounded-2xl overflow-hidden flex flex-col">
+
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b border-white/5">
           <div className="flex items-center gap-2 sm:gap-3">
             <Network className="w-4 h-4 sm:w-5 sm:h-5 text-white/60" />
             <h2 className="text-white/90 text-xs sm:text-[15px] font-medium flex items-center gap-2">
-              {ko ? '에이전트 워크플로우' : 'Agent Workflow'}
-              {activeDirective && (
+              {ko ? '조직 위계도 · 30 에이전트' : 'Organizational Hierarchy · 30 agents'}
+              {activeDirectiveName && (
                 <span className="text-[10px] sm:text-[11px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full animate-pulse">
-                  {activeDirective}
+                  {activeDirectiveName}
                 </span>
               )}
             </h2>
-            <span className="text-[9px] sm:text-[11px] text-white/30 hidden sm:inline">{ko ? '실시간 의사결정 흐름' : 'Real-time decision flow'}</span>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white text-lg sm:text-xl"><X className="w-5 h-5" /></button>
-        </div>
-
-        {/* Hint */}
-        <div className="flex items-center px-3 py-1 sm:px-4 sm:py-1.5 border-b border-white/5">
-          <span className="text-white/30 text-[8px] sm:text-[10px]">{ko ? '드래그 · 스크롤로 줌' : 'Drag nodes • Scroll to zoom'}</span>
+          <div className="flex items-center gap-3">
+            {/* Legend */}
+            <div className="hidden sm:flex items-center gap-3 text-[10px] text-white/40">
+              {TIER_ORDER.map(tier => (
+                <span key={tier} className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: TIER_COLORS[tier].border }} />
+                  {ko ? TIER_LABELS[tier].ko : TIER_LABELS[tier].en}
+                </span>
+              ))}
+            </div>
+            {onClose && (
+              <button onClick={onClose} className="text-white/40 hover:text-white transition">
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Flow Graph */}
@@ -475,48 +598,64 @@ export default function AgentFlowGraph({ open, onClose, lang = 'ko' }: Props) {
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
             fitView
-            fitViewOptions={{ padding: 0.3 }}
+            fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
             proOptions={{ hideAttribution: true }}
-            style={{ background: '#060a14' }}
+            style={{ background: '#030712' }}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={false}
+            panOnDrag
+            zoomOnScroll
+            minZoom={0.3}
+            maxZoom={2}
           >
-            <Background color="#ffffff08" gap={30} />
-            <Controls 
+            <Background color="#ffffff06" gap={40} />
+            <Controls
               showInteractive={false}
-              style={{ 
-                background: '#0a0f1a', 
-                borderColor: '#ffffff10', 
+              style={{
+                background: '#0a0f1a',
+                borderColor: '#ffffff10',
                 borderRadius: '8px',
-              }} 
+              }}
             />
-            <MiniMap 
-              nodeColor={(node) => TIER_COLORS[(node.data as any)?.tier] || '#6b7280'}
-              style={{ 
-                background: '#0a0f1a', 
+            <MiniMap
+              nodeColor={(node) => {
+                const tier = (node.data as any)?.tier as TierKey;
+                if (tier && TIER_COLORS[tier]) return TIER_COLORS[tier].border;
+                // Group nodes
+                const id = node.id;
+                if (id.startsWith('tier-')) {
+                  const t = id.replace('tier-', '') as TierKey;
+                  return TIER_COLORS[t]?.border || '#333';
+                }
+                return '#333';
+              }}
+              style={{
+                background: '#0a0f1a',
                 borderColor: '#ffffff10',
                 borderRadius: '8px',
               }}
               className="hidden sm:block"
-              maskColor="#060a1490"
+              maskColor="#03071290"
             />
           </ReactFlow>
         </div>
 
-        {/* Flow stages legend */}
-        <div className="flex items-center justify-center gap-1 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 border-t border-white/5 overflow-x-auto">
-          {(ko ? GROUP_LABELS_KO : GROUP_LABELS_EN).map(([key, label], i, arr) => (
-            <span key={key} className="flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] text-white/40 shrink-0">
-              {label}
-              {i < arr.length - 1 && <span className="text-white/20 ml-1 sm:ml-2">→</span>}
-            </span>
-          ))}
+        {/* Footer hint */}
+        <div className="flex items-center justify-center px-3 py-1.5 border-t border-white/5">
+          <span className="text-white/25 text-[9px] sm:text-[10px]">
+            {ko ? '에이전트를 클릭하여 상세 정보 확인 · 스크롤로 줌' : 'Click an agent for details · Scroll to zoom'}
+          </span>
         </div>
       </div>
 
-      {/* Confetti particles */}
+      {/* Confetti */}
       {confettiParticles.length > 0 && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-50">
           {confettiParticles.map((p, i) => (
-            <div key={i} className="absolute w-2 h-2 rounded-full animate-bounce"
+            <div
+              key={i}
+              className="absolute w-2 h-2 rounded-full animate-bounce"
               style={{
                 left: `${p.x}%`,
                 top: `${p.y}%`,
@@ -525,22 +664,37 @@ export default function AgentFlowGraph({ open, onClose, lang = 'ko' }: Props) {
                 animationDuration: '1.5s',
                 opacity: showCompleteOverlay ? 0.8 : 0,
                 transition: 'opacity 0.5s',
-              }} />
+              }}
+            />
           ))}
         </div>
       )}
 
       {/* Completion overlay */}
       {showCompleteOverlay && (
-        <div className="absolute inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="text-center space-y-4 animate-in fade-in zoom-in duration-500">
-            <div className="text-6xl"><CheckCircle2 className="w-16 h-16 text-green-400 mx-auto" /></div>
-            <h3 className="text-2xl font-bold text-white">{ko ? '분석 완료!' : 'Analysis Complete!'}</h3>
-            <p className="text-gray-400 text-sm">{completedCount} {ko ? '명의 에이전트가 보고서를 제출했습니다' : 'agents have submitted their reports'}</p>
-            <button onClick={openDashboardDone}
-              className="mt-4 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/30">
-              {ko ? '보고서 보기' : 'View Report'}
-            </button>
+            <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto" />
+            <h3 className="text-2xl font-bold text-white">
+              {ko ? '분석 완료!' : 'Analysis Complete!'}
+            </h3>
+            <p className="text-gray-400 text-sm">
+              {completedCount} {ko ? '명의 에이전트가 보고서를 제출했습니다' : 'agents have submitted their reports'}
+            </p>
+            <div className="flex items-center justify-center gap-3 mt-4">
+              <button
+                onClick={handleViewReport}
+                className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/30"
+              >
+                {ko ? '보고서 보기' : 'View Report'}
+              </button>
+              <button
+                onClick={handleCloseOverlay}
+                className="px-4 py-3 bg-white/10 text-white/70 rounded-xl hover:bg-white/20 transition-all"
+              >
+                {ko ? '닫기' : 'Close'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -550,7 +704,7 @@ export default function AgentFlowGraph({ open, onClose, lang = 'ko' }: Props) {
         agentId={selectedAgentId}
         open={modalOpen}
         onClose={handleModalClose}
-        lang={lang}
+        lang={ko ? 'ko' : 'en'}
       />
     </div>
   );

@@ -1,0 +1,798 @@
+diff a/README.md b/README.md	(rejected hunks)
+@@ -1,348 +1,506 @@
+-# _y — A Visual Layer for AI Agent Orchestration
++# _y Holdings — Your AI Company That Never Sleeps
+ 
+ [![CI](https://github.com/antryu2b/_y/actions/workflows/ci.yml/badge.svg)](https://github.com/antryu2b/_y/actions)
+-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+-[![Tests](https://img.shields.io/badge/tests-407_passing-brightgreen.svg)](./__tests__)
++[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
++[![Tests](https://img.shields.io/badge/tests-461_passing-brightgreen.svg)](./__tests__)
+ [![Agents](https://img.shields.io/badge/agents-30-purple.svg)](./src/data/agent-config.ts)
+ 
+-> See what your AI agents are actually doing.
+->
+-> Independent analysis. Visual tracking. Structured synthesis. Local-first.
++> 30 AI agents running your company 24/7. Setup in 5 minutes. No credit card required.
+ 
+-![Demo](./docs/demo.gif)
+-
+-## What is this?
++## 🔥 What's New (v1.2 — March 2026)
+ 
+-_y is a visual orchestration layer for AI agents. Most multi-agent frameworks run in a terminal — logs scroll, JSON outputs, you have no idea what's happening between agents.
++| Update | Description |
++|--------|-------------|
++| **🛠️ Agent Tool Binding** | All 30 agents now have real executable tools — 15 tools, zero API keys. Web search, market data, security headers, GitHub issues, and more. |
++| **🧠 Dynamic Memory** | Agents recall past interactions. Top 10 memories (by importance) injected into every conversation for contextual, personalized responses. |
++| **📊 Hierarchical Execution** | Directives flow through the org chart: Staff → Manager → Director → C-Suite. Each tier builds on prior analysis with independent verification. |
++| **🏛️ LLM-by-Rank** | Stronger models for higher ranks. C-Suite = Claude Opus, Director = Claude Sonnet + Qwen3, Manager = Gemini Flash + Gemma3, Staff = MiniMax + Gemini. Byzantine principle preserved. |
++| **🗺️ 30-Agent Org Chart** | Workflow graph now shows all 30 agents in tier-based hierarchy. Click any agent for full details. |
++| **🔄 M4 Worker Support** | Chat worker runs on dedicated hardware (128GB Mac Studio) for local Ollama models + Claude CLI + Gemini API. |
+ 
+-_y makes agent work **visible**. See who's analyzing what, how reports flow between functions, where agents disagree, and which LLM provider catches what the others miss. Configure agents for your business functions — marketing, engineering, risk, finance — and watch them work independently before a synthesis agent combines everything.
++![Demo](./docs/demo.gif)
+ 
+-Run locally with **Ollama** (free), or use cloud LLMs (OpenAI, Anthropic, Google). Mix different providers per function for broader coverage.
++<details>
++<summary>📸 Screenshots</summary>
+ 
+-## What You Get
++![Hero](./docs/hero.jpg)
++![Tower](./docs/tower.jpg)
+ 
+-Connect your business URL and _y's agents go to work:
++</details>
+ 
+-### 📊 Strategic Reports
+-Each department analyzes your business independently:
++## What is this?
+ 
+-```
+-┌─────────────────────────────────────────────────────────┐
+-│ REPORT: Market Positioning Analysis                     │
+-│ Agent: Searchy (5F Marketing)                           │
+-│ Model: gemini-2.0-flash                                 │
+-├─────────────────────────────────────────────────────────┤
+-│                                                         │
+-│ Finding: Target site ranks #47 for primary keyword      │
+-│ "AI automation" — competitors hold positions #3-#12.    │
+-│                                                         │
+-│ Recommendation: Focus on long-tail keywords             │
+-│ "AI company builder" and "local LLM agents" where       │
+-│ competition is 10x lower.                               │
+-│                                                         │
+-│ Risk: Skepty (8F Risk) flags keyword cannibalization    │
+-│ between blog and product pages.                         │
+-│                                                         │
+-│ Status: PENDING REVIEW → Chairman Dashboard             │
+-└─────────────────────────────────────────────────────────┘
+-```
++**Your AI company that runs while you sleep.**
+ 
+-### 🏛️ Decision Pipeline
+-Reports flow through a structured chain — not a chatbot:
++_y Holdings gives you 30 specialized AI agents that operate like a real company:
++- **CEO & C-Suite** for strategy and synthesis
++- **Directors** for deep analysis and verification  
++- **Managers** for execution and operations
++- **Staff** for research and data collection
+ 
+-```
+-URL Input → Agent Analysis (independent, parallel)
+-         → Cross-Department Review
+-         → Skepty Challenge (independent oversight)
+-         → Counsely Synthesis (Chief of Staff)
+-         → Chairman Decision (you)
+-```
++Connect your website, issue a directive, and watch your agents analyze it from every angle — SEO, security, marketing, finance, risk, legal. They work in shifts. They never sleep. They cost $0.
+ 
+-### 🔄 What the agents actually do
++## Why _y exists
+ 
+-| Agent | Department | Example Output |
+-|-------|-----------|----------------|
+-| **Searchy** | Marketing | SEO audit, competitor keyword gaps |
+-| **Buildy** | Engineering | Tech stack analysis, performance bottlenecks |
+-| **Finy** | Capital | Revenue model assessment, unit economics |
+-| **Skepty** | Risk | Flags blind spots in other agents' reports |
+-| **Buzzy** | Content | Content strategy, social media positioning |
+-| **Counsely** | Chairman Office | Synthesizes all reports into executive brief |
++Built by a solo founder who needed an executive team but couldn't afford one.
+ 
+-> **Key:** No agent sees another's analysis until review phase. This prevents groupthink — the Byzantine Principle in practice.
++This isn't a demo. It's a production system running real businesses:
++- S&P500 trading monitored by Quanty + Skepty + Hedgy (real money, real markets)
++- Government bid platform with Legaly checking contracts (real users, real compliance)
++- When Skepty flags a risk, it's a risk I actually need to handle
+ 
++**The honest pitch:** I built this for myself. Now you can use it too.
+ 
++No theoretical frameworks. No consensus algorithms that fail under pressure. Just 30 agents, hierarchical decision-making, and you in the loop where judgment belongs.
+ 
+-## Quick Start
++### The core principle
+ 
+-```bash
+-# 1. Clone
+-git clone https://github.com/antryu2b/_y.git
+-cd _y
++> **"No Consensus, Just Counsel"**
+ 
+-# 2. Install
+-npm install
++Most multi-agent systems let AI vote. _y doesn't. Each agent analyzes independently → meets to discuss → Counsely synthesizes → **you decide**.
+ 
+-# 3. Setup (auto-detects your hardware, recommends models)
+-npm run setup
++Why? [Research shows](https://arxiv.org/abs/2311.04838) AI consensus is structurally unreliable (Byzantine Generals Problem). We embrace hierarchy instead: different agents, different perspectives, different LLM architectures, zero groupthink.
+ 
+-# 4. Start
+-npm run dev
++## Who is this for?
+ 
+-# 5. Start the chat worker (in another terminal)
+-npm run chat-worker
+-```
++🧑‍💻 **Solo founders** — Hire your first executive team for $0/month.
++Pick 5-8 agents as your advisory board. Get market research, financial analysis, and security audits without a single hire.
+ 
+-Open [http://localhost:3000](http://localhost:3000) and connect your company.
++🚀 **Startups (2-10 people)** — Scale departments without headcount.
++Deploy marketing, trading, and ops teams that work 24/7. Your 3-person team now has a 30-agent back office.
+ 
+-## Hardware-Aware Setup
++🏢 **Mid-size companies** — Augment your org with AI counterparts.
++Every department gets an AI analyst that never sleeps. Replace slow approval chains with instant agent analysis.
+ 
+-The setup wizard detects your RAM/GPU and recommends the optimal model profile:
++🏗️ **Enterprises** — AI-native org chart as a decision support system.
++Test strategies across 30 specialized perspectives before committing resources.
+ 
+-| Profile | RAM | Models | Download |
+-|---------|-----|--------|----------|
+-| SMALL | 8GB | qwen2.5:7b | ~4GB |
+-| MEDIUM | 16GB | qwen3:14b + gemma3:12b | ~20GB |
+-| LARGE | 32GB | qwen3:32b + gemma3:27b | ~55GB |
+-| X-LARGE | 64GB+ | + llama3.3:70b | ~97GB |
++## Features
+ 
+-The setup automatically pulls Ollama models and generates a `llm-profile.json` for optimal agent-model matching.
++### 🔍 2-Stage Company Analysis
++- **Phase 1**: Counsely (Chief Strategist) scans your URL and classifies your business type
++- **Phase 2**: 7-8 specialized agents are dynamically selected and analyze your company
++- Watch each agent's progress in real-time (Agent Chain of Thought)
+ 
+-## LLM Providers
++### 🎯 Agent Selection & Deployment
++- AI recommends 6-10 agents based on your business type
++- Toggle any of the 30 agents on/off — you choose your team
++- Inactive floors dim in the tower (🔒) — activate when ready
++- "12/30 agents selected" — your company, your team
+ 
+-Choose your AI backend during setup:
++### 🏢 10-Floor Virtual Tower
++- Each floor houses a different department (Strategy, Security, Engineering, Marketing, etc.)
++- Click any floor to see the agents working inside
++- Active floors glow; inactive floors are dimmed with lock icons
+ 
+-| Provider | Models | Cost | Requirements |
+-|----------|--------|------|-------------|
+-| **Ollama** (default) | Qwen3, Gemma3, Llama3, ExaOne | Free | 8GB+ RAM, Ollama installed |
+-| **OpenAI** | GPT-4o, GPT-4o-mini | Pay per token | API key |
+-| **Anthropic** | Claude Sonnet, Claude Opus | Pay per token | API key |
+-| **Google** | Gemini Flash, Gemini Pro | Free tier available | API key |
+-| **Mixed** ⭐ | Any combination above | Varies | Multiple keys |
++### ⚔️ War Room
++- Run meetings with your AI team on any topic
++- Choose from scenario presets (Market Crisis, Product Launch, Security Breach)
++- Or type your own agenda — agents discuss and debate
++- Save results as reports with extracted action items
+ 
+-**Mixed mode** is where _y shines — assign different providers to different departments:
++### 🔄 Decision Pipeline
++The full workflow from meeting to execution:
+ 
+-```env
+-# .env
+-LLM_PROVIDER=mixed
+-OPENAI_API_KEY=sk-...
+-ANTHROPIC_API_KEY=sk-ant-...
+-GOOGLE_API_KEY=AI...
++```
++War Room → Save Report → Action Items → Execute → Directive → Agent Analysis → Results
+ ```
+ 
+-```json
+-// llm-profile.json (auto-generated by setup)
+-{
+-  "provider": "mixed",
+-  "agents": {
+-    "counsely": { "provider": "anthropic", "model": "claude-sonnet-4-20250514" },
+-    "skepty": { "provider": "openai", "model": "gpt-4o" },
+-    "searchy": { "provider": "google", "model": "gemini-2.0-flash" },
+-    "buildy": { "provider": "ollama", "model": "qwen3:32b" }
+-  }
+-}
++1. **War Room** — Run a meeting or simulation with AI agents
++2. **Save** — Click "Save to Reports" when you're satisfied with the results
++3. **Action Items** — AI extracts structured action items from the meeting summary
++4. **Execute** — Click "Execute" on items you want to act on → creates a Directive
++5. **Directive Pipeline** — Agents execute in hierarchical order:
++   - **Phase 1** (Staff) → Data collection and research
++   - **Phase 2** (Manager) → Analysis with Staff findings
++   - **Phase 3** (Director) → Verification, challenging prior conclusions
++   - **Phase 4** (C-Suite) → Strategic synthesis and final report
++   - Each phase receives prior results with an **independent verification mandate** — agents must form their own judgment before comparing
++6. **Review** — Review agent reports in the Chairman Dashboard
++
++Items you don't execute remain as records in the report — no noise in your pipeline.
++
++### 📊 Chairman Dashboard
++- Issue directives to your AI team
++- View reports from meetings, simulations, and agent analysis
++- Track directive progress in real-time via workflow graph
++- Timeline of all company activity
++
++### 🔗 Company Connection
++- Connect your real company URL
++- Agents provide tailored analysis and recommendations
++- Re-scan anytime from Company Settings
++
++### 🔌 Connect via MCP (Model Context Protocol)
++Companies can expose an MCP server for real-time agent access:
++
++```yaml
++# company.yml
++subsidiaries:
++  - name: "Acme Corp"
++    mcp_endpoint: "http://localhost:3001/mcp"
+ ```
+ 
+-Byzantine Principle in action: analysis (Gemini) → challenge (GPT-4o) → synthesis (Claude). Different companies, different architectures, different blind spots.
++Agents will query the MCP server for live company data instead of static snapshots. The MCP client supports:
++- MCP JSON-RPC protocol (`resources/list`, `resources/read`)
++- Fallback to plain JSON API endpoints
++- Resources: `company://info`, `company://products`, `company://team`
++
++### 🌍 Bilingual Support
++- Toggle between English and Korean (한국어) with the language switcher
++- All UI text supports both languages
++
++### 🛠️ Agent Tools (15 Tools, Zero API Keys)
++Every agent has real executable tools — no mocks, no simulations:
++
++| Category | Tool | Source | Agents |
++|----------|------|--------|--------|
++| 🔍 Search | `web_search` | DDG / SearXNG / Google | 19 agents |
++| 📈 Finance | `market_data` | Yahoo Finance | Quanty, Finy, Tradey + 4 |
++| 💰 Crypto | `crypto_price` | CoinGecko | Quanty, Tradey |
++| 💱 FX Rates | `exchange_rate` | Open Exchange Rates | Finy, Quanty |
++| 🏥 Monitoring | `health_check` | Direct HTTP | Watchy, Stacky, Opsy + 2 |
++| 🌐 DNS | `dns_lookup` | Google Public DNS | 5 agents |
++| 🔒 Security | `security_headers` | Direct HTTP | Guardy |
++| 🔥 Trends | `trending_topics` | Hacker News + Product Hunt | Buzzy, Searchy, Clicky |
++| 📋 Issues | `github_issues` | GitHub API | Tasky, Buildy |
++| ✅ Verification | `fact_check` | Cross-reference search | Skepty |
++| 🔗 Web | `fetch_url` | Direct HTTP | Counsely, Searchy + 5 |
++| 📊 Analysis | `company_summary` | Aggregate (multi-tool) | Counsely |
++| 🛡️ Audit | `dependency_audit` | npm audit / bundlephobia | Audity, Guardy + 3 |
++| 💻 Code | `code_stats` | Local analysis | Buildy, Testy, Datay |
++| 🎨 Design | `color_palette` | Algorithm-based | Pixely, Logoy |
++
++All tools use **free public APIs** — no API keys required to get started.
+ 
+-## Database
++## Tech Stack
+ 
+-_y supports three database backends:
++- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
++- **UI Components**: shadcn/ui, Lucide Icons, ReactFlow
++- **Backend**: Supabase (PostgreSQL), Next.js API Routes
++- **AI Models**: Claude (Anthropic), Gemini (Google), DeepSeek R1, Qwen3, MiniMax M2.5 via Ollama
++- **Deployment**: Vercel
+ 
+-### SQLite (Default)
+-Zero configuration. Data stored locally in `data/y-company.db`.
++## Quick Start
+ 
+-```bash
+-# No setup needed — tables auto-created on first run
+-```
++### Prerequisites
++- Node.js 18+
++- Supabase account (free tier works)
++- Optional: AI API keys (Gemini, Anthropic) for enhanced features
+ 
+-### PostgreSQL
+-For production deployments with multiple users.
++### Setup
+ 
++1. Clone the repository
+ ```bash
+-# Set in .env:
+-DB_PROVIDER=postgres
+-DATABASE_URL=postgresql://user:password@localhost:5432/y_company
+-
+-# Create tables:
+-psql $DATABASE_URL < sql/postgres-schema.sql
++git clone https://github.com/antryu2b/y-company.git
++cd y-company
+ ```
+ 
+-### Supabase
+-Cloud PostgreSQL with authentication and realtime features.
+-
++2. Install dependencies
+ ```bash
+-# Set in .env:
+-DB_PROVIDER=supabase
+-SUPABASE_URL=https://your-project.supabase.co
+-SUPABASE_ANON_KEY=your-anon-key
+-SUPABASE_SERVICE_KEY=your-service-role-key
+-
+-# Create tables in Supabase SQL Editor:
+-# Copy contents of sql/postgres-schema.sql
++npm install
+ ```
+ 
+-### Storage Location (SQLite)
+-```
+-data/y-company.db
++3. Copy environment variables
++```bash
++cp .env.example .env.local
+ ```
+ 
+-### Tables (auto-created)
+-| Table | Purpose |
+-|-------|---------|
+-| `conversations` | Agent chat history |
+-| `reports` | Agent-generated reports |
+-| `decisions` | Decision pipeline items |
+-| `agent_memory` | Agent knowledge & memories |
+-| `chat_queue` | LLM request queue (worker processes these) |
+-| `meetings` | War Room meeting records |
+-| `schedules` | Scheduled operations |
+-| `directives` | Chairman directives |
+-| `trades` | Trading records |
+-| `connected_companies` | Connected subsidiary companies |
+-
+-### Backup
++4. Configure your `.env.local` with:
++   - Supabase credentials (required)
++   - Gemini API key (optional)
++   - Anthropic API key (optional)
++
++5. Run development server
+ ```bash
+-cp data/y-company.db data/y-company-backup.db
++npm run dev
+ ```
+ 
+-### Reset
+-```bash
+-rm data/y-company.db
+-# Tables will be re-created on next start
++6. Open [http://localhost:3000](http://localhost:3000)
++
++## Architecture
++
++```mermaid
++graph TB
++    subgraph "Frontend Layer"
++        UI[Next.js App Router]
++        Components[React Components]
++        Flow[ReactFlow Visualization]
++    end
++    
++    subgraph "Business Logic"
++        Engine[Simulation Engine]
++        Memory[Agent Memory]
++        Planner[Decision Planner]
++    end
++    
++    subgraph "AI Layer"
++        Claude[Claude Opus/Sonnet]
++        Gemini[Gemini Flash/Pro]
++        Ollama[Local Models]
++    end
++    
++    subgraph "Data Layer"
++        Supabase[Supabase PostgreSQL]
++        Config[Agent Configuration]
++    end
++    
++    UI --> Engine
++    Components --> Flow
++    Engine --> Memory
++    Engine --> Planner
++    Memory --> Supabase
++    Planner --> Claude
++    Planner --> Gemini
++    Planner --> Ollama
++    Config --> Engine
+ ```
+ 
+-## The Philosophy
++### Project Structure
+ 
+-> **"No Consensus, Just Counsel"**
++```
++src/
++├── app/           # Next.js App Router pages & API routes
++├── components/    # React components
++│   ├── TowerView.tsx        # Main tower visualization
++│   ├── CompanySettings.tsx  # Company connection & profile
++│   ├── MeetingRoom.tsx      # War Room (meetings + simulations)
++│   ├── ChairmanDashboard.tsx # CEO dashboard
++│   ├── AgentFlowGraph.tsx   # Agent workflow visualization
++│   └── ...
++├── data/          # Agent configs, floor data, i18n
++├── engine/        # Simulation engine, memory, planner
++├── lib/           # Utilities, Supabase client, connectors
++├── context/       # React contexts (Language, Report)
++└── hooks/         # Custom React hooks
++```
++
++## The 30 Agents
+ 
+-Most multi-agent frameworks let AI agents vote and reach consensus. We don\'t. Based on research into the [Byzantine Generals Problem in LLM agents](https://arxiv.org/abs/2311.04838), democratic consensus among AI agents is structurally unreliable.
++Our AI workforce is organized across 10 floors with clear hierarchies and specialized roles:
++
++| # | Agent | Role | Floor | Department | LLM |
++|---|-------|------|-------|------------|-----|
++| 30 | Counsely | Chief of Staff | 10F | Chairman's Office | Claude Opus |
++| 01 | Tasky | Task Management | 9F | Planning & Coordination | Claude Opus |
++| 02 | Finy | Financial Planning | 9F | Planning & Coordination | Claude Sonnet |
++| 03 | Legaly | Legal Affairs | 9F | Planning & Coordination | Qwen3 32B |
++| 04 | Skepty | Risk Analysis | 8F | Risk Challenge | Qwen3 32B |
++| 05 | Audity | Auditing | 8F | Audit | Claude Sonnet |
++| 06 | Pixely | UI/UX Design | 7F | Software Development | Gemma3 27B |
++| 07 | Buildy | Full-stack Development | 7F | Software Development | MiniMax M2.5 |
++| 08 | Testy | QA/Testing | 7F | Software Development | MiniMax M2.5 |
++| 09 | Buzzy | Social Media | 6F | Content Division | Claude Sonnet |
++| 10 | Wordy | Copywriting | 6F | Content Division | Claude Sonnet |
++| 11 | Edity | Video Editing | 6F | Content Division | Gemma3 27B |
++| 12 | Searchy | SEO/Research | 6F | Content Division | Gemini Flash |
++| 13 | Growthy | Growth Hacking | 5F | Marketing Division | Gemma3 27B |
++| 14 | Logoy | Brand Design | 5F | Marketing Division | Gemma3 27B |
++| 15 | Helpy | Customer Support | 5F | Marketing Division | Gemini Flash |
++| 16 | Clicky | Ad Management | 5F | Marketing Division | Gemini Flash |
++| 17 | Selly | Sales Strategy | 5F | Marketing Division | Gemini Flash |
++| 18 | Stacky | Infrastructure | 4F | ICT Division | MiniMax M2.5 |
++| 19 | Watchy | Monitoring | 4F | ICT Division | MiniMax M2.5 |
++| 20 | Guardy | Security | 4F | ICT Division | Qwen3 32B |
++| 21 | Hiry | Operations Support | 3F | Human Resources | Claude Sonnet |
++| 22 | Evaly | Data Analytics | 3F | Human Resources | Claude Sonnet |
++| 23 | Quanty | Quantitative Analysis | 2F | _y Capital | Qwen3 32B |
++| 24 | Tradey | Trading | 2F | _y Capital | Qwen3 32B |
++| 25 | Globy | Global Markets | 2F | _y Capital | Gemini Flash |
++| 26 | Fieldy | Field Research | 2F | _y Capital | Gemini Flash |
++| 27 | Hedgy | Hedge Strategy | 2F | _y Capital | Qwen3 32B |
++| 28 | Valuey | Valuation | 2F | _y Capital | Qwen3 32B |
++| 29 | Opsy | Operations | 1F | _y SaaS | MiniMax M2.5 |
++
++### LLM Distribution Strategy
++
++LLMs are assigned **by hierarchy** — stronger models for higher ranks, different architectures within the same tier for Byzantine resilience:
++
++| Tier | Model(s) | Agents | Purpose |
++|------|----------|--------|---------|
++| **C-Suite** (3) | Claude Opus | Counsely, Tasky, Finy | Strategic synthesis, final judgment |
++| **Director** (9) | Claude Sonnet + Qwen3 32B | Legaly, Audity, Buildy, Buzzy, Growthy, Quanty (Sonnet) · Skepty, Stacky, Opsy (Qwen3) | Deep analysis + cross-architecture verification |
++| **Manager** (13) | Gemini Flash + Gemma3 27B | Searchy, Testy, Edity, Watchy, Hiry, Tradey, Hedgy (Flash) · Pixely, Wordy, Guardy, Evaly, Globy, Valuey (Gemma3) | Fast execution + alternative perspective |
++| **Staff** (5) | MiniMax M2.5 + Gemini Flash | Logoy, Clicky, Fieldy (MiniMax) · Helpy, Selly (Flash) | Lightweight data collection |
++
++**Key principle**: Same-tier agents use **different LLM architectures** so no two agents analyzing the same issue share the same model biases.
++
++## Configuration
++
++### Company Settings (`company.yml`)
++
++Define your AI company in a single YAML file:
++
++```yaml
++company:
++  name: "Acme Corp"
++  industry: "saas"
++  description: "AI-powered analytics platform"
++  team_size: 15
++
++floors:
++  - level: 10
++    name: "Executive"
++    agents: [counsely, tasky]
++  - level: 9
++    name: "Strategy"
++    agents: [finy, legaly]
++  # ... add up to 10 floors
++
++agents:
++  - id: custom_agent
++    name: "DataBot"
++    tier: "Manager"
++    floor: 4
++    department: "Data Engineering"
++    llm: "gemini-flash"
++    role: "analyst"
++    desc: "Data pipeline monitoring and optimization"
++```
+ 
+-Instead: Each agent analyzes independently → They discuss in meetings → Counsely synthesizes → **You decide.** The human stays in the loop.
++Company profile settings are in `src/data/company-config.ts`:
++- Company name, description, products
++- Target customers and values
++- Agent response rules
+ 
+-30 agents, zero consensus — by design.
++### Adding Custom Agents
+ 
+-## Features
++Add a new agent to `src/data/agent-config.ts`:
+ 
+-- **🏢 10-Floor Virtual Tower** — Each floor houses a different department
+-- **🔍 Company Analysis** — Connect your URL, agents analyze your business
+-- **⚔️ War Room** — Run meetings with your AI team on any topic
+-- **📊 Chairman Dashboard** — Issue directives, approve decisions, view reports
+-- **📡 Directive Pipeline** — Chairman → Counsely assigns agents → execution → report
+-- **🌍 Bilingual** — English / Korean toggle
++```typescript
++// 1. Add to AGENT_ROSTER array
++{
++  id: 'datay',
++  number: '31',
++  name: 'Datay',
++  tier: 'Manager',
++  floor: 4,                          // Which floor (1-10)
++  department: 'ICT Division',
++  reportTo: 'stacky',               // Direct supervisor
++  llm: LLM_MODELS.gemini_flash,     // LLM assignment
++  role: 'analyst',                   // analyst | reviewer | executor
++  desc: 'Data Engineering — ETL pipelines, data quality',
++  emoji: '📊'
++}
+ 
+-## Architecture
++// 2. Add agent photo to /public/agents/datay.png (256x256)
+ 
+-```
+-┌─────────────────┐     ┌─────────────────┐
+-│  Next.js App    │     │  Chat Worker    │
+-│  (Frontend +    │     │  (Background    │
+-│   API Routes)   │     │   LLM Caller)   │
+-└────────┬────────┘     └────────┬────────┘
+-         │                       │
+-         └────────┬───────────┘
+-                │
+-         ┌──────┴──────┐     ┌─────────────────┐
+-         │  SQLite DB   │     │  LLM Provider   │
+-         │  (Local)     │     │  Ollama/OpenAI/ │
+-         └─────────────┘     │  Anthropic/    │
+-                              │  Google         │
+-                              └─────────────────┘
++// 3. Add persona in src/data/personas.ts
++agentPersonas['datay'] = `You are Datay, Data Engineer at _y Holdings...`;
+ ```
+ 
+-Local or cloud. Your choice.
++That's it — your agent appears in the tower, gets assigned directives, and responds with their specialized LLM.
+ 
+-## Corporate Hierarchy
++### LLM Configuration
+ 
+-Unlike flat agent frameworks, _y agents have ranks and reporting lines — just like a real company:
++Swap any agent's LLM in `agent-config.ts`:
+ 
+-```
+-Chairman (You)
+-├── Counsely — Chief of Staff (synthesis, final briefing)
+-├── Tasky — Planning Director
+-│   ├── Finy (Finance) · Legaly (Legal)
+-│   ├── Buzzy → Wordy, Edity, Searchy (Content)
+-│   ├── Growthy → Logoy, Helpy, Clicky, Selly (Marketing)
+-│   ├── Stacky → Watchy, Guardy (ICT)
+-│   ├── Hiry → Evaly (HR)
+-│   ├── Buildy → Pixely, Testy (Engineering)
+-│   └── Opsy (Operations)
+-├── Skepty — Risk Director (independent challenge)
+-├── Audity — Audit (independent review)
+-└── Quanty — Capital Director
+-    └── Tradey, Globy, Fieldy, Hedgy, Valuey
++```typescript
++const LLM_MODELS = {
++  // Cloud APIs (fast, paid)
++  claude_opus:    { type: 'anthropic', model: 'claude-opus-4-20250514' },
++  claude_sonnet:  { type: 'anthropic', model: 'claude-sonnet-4-20250514' },
++  gemini_flash:   { type: 'gemini',    model: 'gemini-2.5-flash' },
++
++  // Local via Ollama (free, slower)
++  qwen3_32b:      { type: 'ollama', model: 'qwen3:32b' },
++  gemma3_27b:     { type: 'ollama', model: 'gemma3:27b' },
++
++  // Add your own
++  gpt4o_mini:     { type: 'openai', model: 'gpt-4o-mini' },
++  llama3:         { type: 'ollama', model: 'llama3.3:70b' },
++};
+ ```
+ 
+-**Key design:** Risk (Skepty) and Audit (Audity) report directly to the Chairman — never to the departments they review. Just like a real corporate governance structure.
++**Byzantine Principle**: Agents analyzing the same issue (analysis ↔ check ↔ synthesis) must use different LLM architectures to avoid correlated failures.
+ 
+-## The 30 Agents
++| Role | Recommended | Why |
++|------|------------|-----|
++| Research/Search | Gemini Flash | Fast, good at retrieval |
++| Analysis/Finance | Claude Sonnet | Strong reasoning |
++| Synthesis/Strategy | Claude Opus | Best judgment |
++| Risk/Audit | Different from analyst | Byzantine independence |
++| Dev/Ops | Ollama local or MiniMax | Cost-effective |
++
++### API Extension
+ 
+-| Floor | Department | Agents | Default LLM |
+-|-------|-----------|--------|-------------|
+-| 10F | Chairman\'s Office | Counsely (Chief of Staff) | Largest available |
+-| 9F | Planning | Tasky, Finy, Legaly | Strategy model |
+-| 8F | Risk & Audit | Skepty, Audity | Analysis model |
+-| 7F | Engineering | Pixely, Buildy, Testy | Dev model |
+-| 6F | Content | Buzzy, Wordy, Edity, Searchy | Research model |
+-| 5F | Marketing | Growthy, Logoy, Helpy, Clicky, Selly | Research model |
+-| 4F | ICT | Stacky, Watchy, Guardy | Dev model |
+-| 3F | HR | Hiry, Evaly | Analysis model |
+-| 2F | Capital | Quanty, Tradey, Globy, Fieldy, Hedgy, Valuey | Analysis model |
+-| 1F | Operations | Opsy | Dev model |
++The directive pipeline is the core execution engine:
+ 
+-**Byzantine Principle**: Agents on the same issue with analysis ↔ check ↔ synthesis roles use different LLM architectures to avoid correlated failures.
++```
++POST /api/directives        → Create directive (title + description)
++POST /api/directive/assign  → Counsely assigns agents (Claude Opus)
++POST /api/directive/execute → Create chat_queue tasks per agent
++POST /api/directive/complete → Collect responses → generate report
++```
+ 
+-## Adding Custom Agents
++**Adding a new API endpoint:**
+ 
+ ```typescript
+-// src/data/agent-config.ts
+-{
+-  id: \'datay\',
+-  number: \'31\',
+-  name: \'Datay\',
+-  tier: \'Manager\',
+-  floor: 4,
+-  department: \'ICT Division\',
+-  reportTo: \'stacky\',
+-  llm: LLM_MODELS.qwen3_32b,
+-  role: \'analyst\',
+-  desc: \'Data Engineering\',
+-  emoji: \'\'
++// src/app/api/custom/route.ts
++import { NextRequest, NextResponse } from 'next/server';
++
++export async function POST(req: NextRequest) {
++  const { agentId, task } = await req.json();
++
++  // Insert into chat_queue — M4 worker picks it up automatically
++  const res = await fetch(`${SUPABASE_URL}/rest/v1/chat_queue`, {
++    method: 'POST',
++    headers: {
++      'apikey': SUPABASE_KEY,
++      'Authorization': `Bearer ${SUPABASE_KEY}`,
++      'Content-Type': 'application/json',
++    },
++    body: JSON.stringify({
++      agent_id: agentId,
++      message: task,
++      status: 'pending',
++    }),
++  });
++
++  return NextResponse.json({ ok: true });
+ }
+-
+-// Add photo: public/agents/datay.png
+-// Add persona: src/data/personas.ts
+ ```
+ 
+-## Directive Pipeline
++The chat worker (`scripts/chat-worker.ts`) polls `chat_queue` and routes to the correct LLM based on the agent's config. No code changes needed — just insert a row.
+ 
+-The core execution engine:
++## Development
+ 
+-1. **Chairman issues directive** (Dashboard)
+-2. **Counsely assigns agents** (Ollama AI selection)
+-3. **Agents execute** (chat_queue → worker → Ollama)
+-4. **Report generated** (auto-compiled from all responses)
++### Available Scripts
++
++```bash
++npm run dev          # Start development server
++npm run build        # Build for production
++npm run start        # Start production server
++npm run lint         # Run ESLint
++npx tsx scripts/chat-worker.ts  # Start chat worker (on your GPU machine)
++```
++
++### Project Structure
+ 
+ ```
+-POST /api/directives        → Create directive
+-POST /api/directive/assign   → AI agent assignment
+-POST /api/directive/execute  → Queue agent tasks
+-POST /api/directive/complete → Compile report
+-GET  /api/directive/status   → Poll progress
++src/
++├── app/api/          # API routes (directives, chat, decisions)
++├── components/       # React components (TowerView, Dashboard, GlassPanel)
++├── data/             # Agent config, floor config, company config, personas
++├── context/          # React contexts (Lang, Report)
++├── lib/              # Utilities (markdown, floor-icons)
++scripts/
++├── chat-worker.ts    # LLM queue worker (runs on M4/GPU server)
++├── searchy-news.ts   # Automated news collection
++sql/
++├── schema.sql        # Full database schema (9 tables)
++public/agents/        # Agent avatar images (30 PNGs)
+ ```
+ 
+-## Tech Stack
++## Deployment
+ 
+-- **Frontend**: Next.js 16, React 19, Tailwind CSS, shadcn/ui
+-- **Database**: SQLite (better-sqlite3) — zero config
+-- **AI**: Ollama (local) / OpenAI / Anthropic / Google — your choice
+-- **Icons**: Lucide React
++The easiest way to deploy is using Vercel:
+ 
+-## Prerequisites
++[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fantryu2b%2Fy-company)
+ 
+-- Node.js 18+
+-- **Option A (Local):** [Ollama](https://ollama.ai) installed + 8GB+ RAM
+-- **Option B (Cloud):** API key from OpenAI, Anthropic, or Google
++1. Connect your GitHub repository to Vercel
++2. Set environment variables in Vercel dashboard
++3. Deploy automatically on every push to main
+ 
+ ## Testing
+ 
+@@ -362,20 +520,30 @@ npm run test:coverage
+ | Category | Path | What it covers |
+ |----------|------|----------------|
+ | **Validation** | `__tests__/validation/` | No hardcoded keys, required files, dead imports |
+-| **Unit** | `__tests__/unit/` | Personas, LLM config, company registry |
++| **Unit** | `__tests__/unit/` | Personas (KR/EN), LLM config, markdown formatting |
+ | **Integration** | `__tests__/integration/` | Directive flow, API routes, data consistency |
+ | **Data** | `__tests__/data/` | Agent roster (30), floors (10), company config |
+ 
++**18 test suites, 461 tests** covering:
++- ✅ Code quality (API key scanning, dead import detection)
++- ✅ All 30 agent personas in Korean + English
++- ✅ LLM assignment validity + Byzantine diversity
++- ✅ Directive pipeline status transitions
++- ✅ Agent ↔ Floor ↔ Persona cross-consistency
++- ✅ Build requirements (LICENSE, README, .env.example)
+ 
+ ## License
+ 
+-MIT — see [LICENSE](./LICENSE)
++AGPL-3.0 — see [LICENSE](./LICENSE)
++
++This project is open source under the GNU Affero General Public License v3.0. You are free to use, modify, and distribute this software, but any modifications must also be open sourced under the same license.
+ 
+ ## Links
+ 
++- 🌐 [Live Demo](https://y-company-sigma.vercel.app)
+ - 🐦 [Twitter/X](https://x.com/_yholdings)
+-- 🌐 [Live Demo (Cloud version)](https://y-company-oss.vercel.app)
++- 📧 Contact: [@_yholdings](https://x.com/_yholdings)
+ 
+ ---
+ 
+-*1 founder. 30 agents. A full company. — Built for builders.*
++*Built solo. Tested in production. Open-sourced for builders.*
+\ No newline at end of file

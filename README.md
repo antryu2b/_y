@@ -1,10 +1,10 @@
-# _y — A Visual Layer for AI Agent Orchestration
+# _y Holdings — Your AI Company That Never Sleeps
 
 [![CI](https://github.com/antryu2b/_y/actions/workflows/ci.yml/badge.svg)](https://github.com/antryu2b/_y/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/tests-407_passing-brightgreen.svg)](./__tests__)
 [![Agents](https://img.shields.io/badge/agents-30-purple.svg)](./src/data/agent-config.ts)
-
+> 30 AI agents running your company 24/7. Setup in 5 minutes. No credit card required.
 > See what your AI agents are actually doing.
 >
 > Independent analysis. Visual tracking. Structured synthesis. Local-first.
