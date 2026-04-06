@@ -105,15 +105,6 @@ function HomeContent() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <a
-            href="https://personal-wiki-cyan.vercel.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-lg border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 text-gray-200 hover:text-purple-300 text-xs transition-all duration-200"
-          >
-            <span>📚</span>
-            <span>Wiki</span>
-          </a>
           <button
             onClick={() => setLang(lang === 'ko' ? 'en' : 'ko')}
             className="w-8 h-8 flex items-center justify-center rounded-full bg-black/70 backdrop-blur-lg border border-white/10 hover:border-white/20 hover:bg-white/5 text-gray-200 hover:text-white text-xs transition-all duration-200"
